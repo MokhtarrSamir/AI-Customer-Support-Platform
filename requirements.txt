@@ -1,0 +1,5 @@
+sqlalchmy=
+pydanitc=
+pydanitc_settings=
+psycopg[binary]
+alembic

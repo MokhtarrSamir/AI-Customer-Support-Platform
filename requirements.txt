@@ -3,3 +3,8 @@ pydanitc=
 pydanitc_settings=
 psycopg[binary]
 alembic
+fastapi
+uvicorn[standard]
+email-validator
+pwdlib[argon2]
+PyJWT

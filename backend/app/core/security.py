@@ -1,6 +1,6 @@
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ import jwt
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.user import User
+from app.models.user import User, AccountStatus
 
 password_hash = PasswordHash.recommended()
 
@@ -38,7 +38,7 @@ def create_access_token(user_id: int) -> str:
 security = HTTPBearer()
 
 def get_current_user(
-    credentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     credentials_exception = HTTPException(
@@ -70,4 +70,25 @@ def get_current_user(
     if user is None:
         raise credentials_exception
 
+    if user.account_status == AccountStatus.DISABLED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
     return user
+
+
+def require_roles(*allowed_roles):
+    def role_checker(
+        current_user: User = Depends(get_current_user),
+    ):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
+
+        return current_user
+
+    return role_checker

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from datetime import datetime
 
 class MessageSenderResponse(BaseModel):
     id: int
@@ -14,6 +15,7 @@ class MessageResponse(BaseModel):
     content: str
     ticket_id: int
     sender_id: int
+    timestamp: datetime
     sender: MessageSenderResponse
 
     model_config = ConfigDict(from_attributes=True)

@@ -68,6 +68,16 @@ class Ticket(Base):
         nullable=False
     )
 
+    ai_summary: Mapped[str | None] = mapped_column(
+    Text,
+    nullable=True,
+    )
+
+    ai_suggested_action: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     category: Mapped[TicketCategory] = mapped_column(
         SQLEnum(TicketCategory),
         nullable=False

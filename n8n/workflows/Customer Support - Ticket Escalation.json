@@ -1,0 +1,232 @@
+{
+  "name": "Customer Support - Ticket Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ticket-escalation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a87f80ef-ab4c-49e4-96e9-11e2f6dbcab1",
+      "name": "Webhook",
+      "webhookId": "a69b7e50-4a4b-467c-9e81-909c9945c919"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "829cdd0a-1ad5-474b-b2b4-509854e64501",
+              "leftValue": "={{ $json.body.priority }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "f7e1ebb3-4543-471c-b32b-bd56f1280e7a",
+              "leftValue": "={{ $json.body.status }}",
+              "rightValue": "Escalated",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8019ff4e-987e-4463-a789-6d1a5e150ba3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "shahdhoda316@gmail.com",
+        "subject": "🚨 Critical Ticket Escalation",
+        "emailType": "text",
+        "message": "=A ticket has been escalated and requires admin attention.  Ticket ID: {{ $json.ticket_id }} Customer: {{ $json.customer }} Subject: {{ $json.subject }} Priority: {{ $json.priority }} Status: {{ $json.status }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "6c662430-9426-4010-93d7-bca77a6554c3",
+      "name": "Send a message",
+      "webhookId": "40db017b-d7fa-4782-9f95-a3fa864e29d9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "u3iaRqQmLg9vPZaI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1wohcKMriM6v9wCyRAQQ-472nnOZjJBLJuPcwbfGulzc",
+          "mode": "list",
+          "cachedResultName": "Test Escalations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wohcKMriM6v9wCyRAQQ-472nnOZjJBLJuPcwbfGulzc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Escalations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wohcKMriM6v9wCyRAQQ-472nnOZjJBLJuPcwbfGulzc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Ticket ID": "{{ $json.body.ticket_id }}",
+            "Customer": "{{ $json.body.customer }}",
+            "Subject": "{{ $json.body.subject }}",
+            "Priority": "{{ $json.body.priority }}",
+            "Status": "{{ $json.body.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Ticket ID",
+              "displayName": "Ticket ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer",
+              "displayName": "Customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Subject",
+              "displayName": "Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        -96
+      ],
+      "id": "80873547-8b4d-417c-875b-621204e7f110",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bpmRmh18YvQQWzOI",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e91886fc-d461-4340-8fdd-ff64b7ac0e5f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15b08a3ee6cdce5fe37b86eafb1e29324d2499a37bec9ff1667818db1a45cabc"
+  },
+  "nodeGroups": [],
+  "id": "FhUtdmzTODTBmBP7",
+  "tags": []
+}

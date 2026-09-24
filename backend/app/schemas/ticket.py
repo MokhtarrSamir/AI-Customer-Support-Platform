@@ -21,6 +21,8 @@ class TicketResponse(BaseModel):
     assigned_agent_id: int | None
     created_at: datetime
     updated_at: datetime
+    ai_summary: str | None
+    ai_suggested_action: str | None
 
     model_config = ConfigDict(from_attributes=True)
 

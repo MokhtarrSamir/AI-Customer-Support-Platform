@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import TYPE_CHECKING
+from datetime import datetime
 
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import String
+from sqlalchemy import String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,6 +31,12 @@ class User(Base):
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    server_default=func.now(),
     )
 
     name: Mapped[str] = mapped_column(

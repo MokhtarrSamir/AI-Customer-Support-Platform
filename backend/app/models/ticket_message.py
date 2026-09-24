@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, Text
+from sqlalchemy import ForeignKey, Text, func, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -18,6 +19,12 @@ class TicketMessage(Base):
         primary_key=True,
         index=True
     )
+
+    timestamp: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    server_default=func.now(),
+)
 
     content: Mapped[str] = mapped_column(
         Text,

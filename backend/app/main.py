@@ -7,9 +7,6 @@ from app.routers.auth import router as auth_router
 from app.routers.ticket import router as ticket_router
 from app.routers.message import router as message_router
 from app.routers.user import router as user_router
-from app.routers.admin import router as admin_router
-from app.routers.ai import router as ai_router
-
 
 
 app = FastAPI(
@@ -19,9 +16,6 @@ app.include_router(auth_router)
 app.include_router(ticket_router)
 app.include_router(message_router)
 app.include_router(user_router)
-app.include_router(admin_router)
-app.include_router(ai_router)
-
 
 @app.get("/health")
 def health_check():

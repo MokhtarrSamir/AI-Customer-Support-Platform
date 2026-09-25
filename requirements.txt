@@ -1,6 +1,6 @@
-sqlalchmy=
-pydanitc=
-pydanitc_settings=
+sqlalchemy
+pydantic
+pydantic-settings
 psycopg[binary]
 alembic
 fastapi

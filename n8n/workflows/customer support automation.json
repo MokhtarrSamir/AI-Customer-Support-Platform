@@ -1,0 +1,97 @@
+{
+  "name": "customer support automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-ticket",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0395b540-84cd-4ef9-b4cd-4f7811e5f607",
+      "name": "Webhook",
+      "webhookId": "1dacdaa9-d5dc-432f-9ac1-1c37960d8e11"
+    },
+    {
+      "parameters": {
+        "url": "https://unbundle-drizzle-washtub.ngrok-free.dev/test/tickets/125",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "9995c42c-3bdd-4150-8fc8-f757ad153307",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "sendTo": "shahdhoda316@gmail.com",
+        "subject": "New Support Ticket",
+        "emailType": "text",
+        "message": "=A new support ticket has been created.  Ticket ID: {{ $node[\"HTTP Request\"].json[\"ticket_id\"] }} Customer: {{ $node[\"HTTP Request\"].json[\"customer\"] }} Subject: {{ $node[\"HTTP Request\"].json[\"subject\"] }} Category: {{ $node[\"HTTP Request\"].json[\"category\"] }} Priority: {{ $node[\"HTTP Request\"].json[\"priority\"] }} Status: {{ $node[\"HTTP Request\"].json[\"status\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "e2c6f6ec-87cc-43fb-95a0-58083b22f355",
+      "name": "Send a message",
+      "webhookId": "3008740b-4ae2-40f7-813c-61870672e7a2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "u3iaRqQmLg9vPZaI",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1ca945c6-89f8-4444-8f13-5996327b061f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15b08a3ee6cdce5fe37b86eafb1e29324d2499a37bec9ff1667818db1a45cabc"
+  },
+  "nodeGroups": [],
+  "id": "BxNjQpiQVvG9sJgc",
+  "tags": []
+}

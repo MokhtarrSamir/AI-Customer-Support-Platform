@@ -7,6 +7,7 @@ from app.core.security import get_current_user, require_roles
 from app.models.user import User, UserRole
 from app.models.ticket import Ticket
 from app.models.ticket_message import TicketMessage
+from app.models.ai_usage import AIUsage
 from app.schemas.ai import (
     ChatRequest,
     ChatResponse,
@@ -28,6 +29,7 @@ router = APIRouter(
 @router.post("/chat", response_model=ChatResponse)
 def chat_with_agent(
     data: ChatRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -49,6 +51,15 @@ def chat_with_agent(
             else str(last_message)
         )
 
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="chat",
+                success=True,
+            )
+        )
+        db.commit()
+
         return ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(
@@ -65,6 +76,7 @@ def chat_with_agent(
 def suggest_response(
     data: SuggestResponseRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         ticket = db.scalar(select(Ticket).where(Ticket.id == data.ticket_id))
@@ -99,6 +111,15 @@ def suggest_response(
             else str(ai_response)
         )
 
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="suggest_response",
+                success=True,
+            )
+        )
+        db.commit()
+
         return SuggestResponseResponse(suggested_response=text_content.strip())
     except HTTPException:
         raise
@@ -112,10 +133,11 @@ def suggest_response(
 @router.post(
     "/classify-ticket",
     response_model=ClassifyTicketResponse,
-    dependencies=[Depends(get_current_user)],
 )
 def classify_ticket(
     data: ClassifyTicketRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         structured_llm = llm.with_structured_output(ClassifyTicketResponse)
@@ -124,6 +146,15 @@ def classify_ticket(
             description=data.description,
         )
         result = structured_llm.invoke(prompt)
+
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="classify_ticket",
+                success=True,
+            )
+        )
+        db.commit()
 
         if isinstance(result, dict):
             return ClassifyTicketResponse(**result)
@@ -141,6 +172,7 @@ from langchain_core.messages import HumanMessage
 @router.post("/chat/stream")
 async def chat_stream(
     request: ChatRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     # Use provided thread_id or default to the user's thread
@@ -177,6 +209,15 @@ async def chat_stream(
                     "output": output_data
                 })
 
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="chat_stream",
+                success=True,
+            )
+        )
+        db.commit()
+
         return {"events": events, "thread_id": thread_id}
     except Exception as e:
         raise HTTPException(
@@ -188,6 +229,7 @@ async def chat_stream(
 @router.post("/chat/structured", response_model=StructuredChatResponse)
 async def chat_structured(
     request: ChatRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -195,6 +237,15 @@ async def chat_structured(
         # In a real scenario, you might pass through the graph or just use LLM directly
         # depending on if state is required. Here we just invoke the structured LLM.
         result = structured_llm.invoke(request.message)
+
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="chat_structured",
+                success=True,
+            )
+        )
+        db.commit()
         
         if isinstance(result, dict):
             return StructuredChatResponse(**result)

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.ticket import TicketCategory
@@ -24,3 +25,12 @@ class SupportActivity(BaseModel):
     assigned_tickets: int
     resolved_tickets: int
     messages_sent: int
+
+class AIUsageResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: str
+    operation: str
+    success: bool
+    created_at: datetime
+

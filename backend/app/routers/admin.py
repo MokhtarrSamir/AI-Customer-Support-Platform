@@ -5,7 +5,8 @@ from sqlalchemy import func, select
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User, UserRole
-from app.schemas.admin import AdminStatisticsResponse, SupportActivity
+from app.models.ai_usage import AIUsage
+from app.schemas.admin import AdminStatisticsResponse, SupportActivity, AIUsageResponse
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.schemas.user import UserResponse
 from app.models.ticket_message import TicketMessage
@@ -207,5 +208,53 @@ def get_support_activity(
             assigned_count,
             resolved_count,
             message_count,
+        ) in rows
+    ]
+
+@router.get(
+    "/ai-usage",
+    response_model=list[AIUsageResponse],
+)
+def get_ai_usage(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can view AI usage",
+        )
+
+    stmt = (
+        select(
+            AIUsage.id,
+            AIUsage.user_id,
+            User.name,
+            AIUsage.operation,
+            AIUsage.success,
+            AIUsage.created_at,
+        )
+        .join(User, AIUsage.user_id == User.id)
+        .order_by(AIUsage.created_at.desc())
+    )
+
+    rows = db.execute(stmt).all()
+
+    return [
+        {
+            "id": usage_id,
+            "user_id": user_id,
+            "user_name": user_name,
+            "operation": operation,
+            "success": success,
+            "created_at": created_at,
+        }
+        for (
+            usage_id,
+            user_id,
+            user_name,
+            operation,
+            success,
+            created_at,
         ) in rows
     ]

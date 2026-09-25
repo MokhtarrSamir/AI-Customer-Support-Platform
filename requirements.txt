@@ -8,3 +8,8 @@ uvicorn[standard]
 email-validator
 pwdlib[argon2]
 PyJWT
+langchain
+langgraph
+langchain_groq
+langchain-core
+python-dotenv

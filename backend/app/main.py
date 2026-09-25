@@ -9,6 +9,7 @@ from app.routers.message import router as message_router
 from app.routers.user import router as user_router
 
 
+
 app = FastAPI(
     title="AI Customer Support Platform",
 )
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(ticket_router)
 app.include_router(message_router)
 app.include_router(user_router)
+
 
 @app.get("/health")
 def health_check():

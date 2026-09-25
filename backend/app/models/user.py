@@ -12,6 +12,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.ticket import Ticket
     from app.models.ticket_message import TicketMessage
+    from app.models.ai_usage import AIUsage
 
 
 class UserRole(str, Enum):
@@ -85,3 +86,8 @@ class User(Base):
         foreign_keys="TicketMessage.sender_id",
         back_populates="sender"
     )
+
+    ai_usage: Mapped[list["AIUsage"]] = relationship(
+    "AIUsage",
+    back_populates="user",
+)

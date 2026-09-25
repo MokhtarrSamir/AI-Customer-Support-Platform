@@ -109,3 +109,38 @@ def activate_user(
     db.refresh(user)
 
     return user
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can delete users",
+        )
+
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Admins cannot delete themselves",
+        )
+
+    user = db.scalar(
+        select(User).where(User.id == user_id)
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    db.delete(user)
+    db.commit()
+
+    return {
+        "message": "User deleted successfully"
+    }

@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1] / "backend"))
 
 from app.core.database import Base
-from app.models import User, Ticket, TicketMessage
+from app.models import User, Ticket, TicketMessage, AIUsage
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides

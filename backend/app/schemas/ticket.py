@@ -7,7 +7,6 @@ from app.models.ticket import TicketCategory, TicketPriority, TicketStatus
 class CreateTicketRequest(BaseModel):
     subject: str
     description: str
-    category: TicketCategory
     message: str
 
 class TicketResponse(BaseModel):

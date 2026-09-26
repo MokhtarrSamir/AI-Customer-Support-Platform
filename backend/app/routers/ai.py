@@ -13,12 +13,10 @@ from app.schemas.ai import (
     ChatResponse,
     SuggestResponseRequest,
     SuggestResponseResponse,
-    ClassifyTicketRequest,
-    ClassifyTicketResponse,
     StructuredChatResponse,
 )
 from app.agent.graph import app_graph, llm
-from app.agent.prompts import SUGGEST_RESPONSE_PROMPT, CLASSIFY_TICKET_PROMPT
+from app.agent.prompts import SUGGEST_RESPONSE_PROMPT
 
 router = APIRouter(
     prefix="/ai",
@@ -127,42 +125,6 @@ def suggest_response(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating response suggestion: {str(e)}",
-        )
-
-
-@router.post(
-    "/classify-ticket",
-    response_model=ClassifyTicketResponse,
-)
-def classify_ticket(
-    data: ClassifyTicketRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        structured_llm = llm.with_structured_output(ClassifyTicketResponse)
-        prompt = CLASSIFY_TICKET_PROMPT.format(
-            subject=data.subject,
-            description=data.description,
-        )
-        result = structured_llm.invoke(prompt)
-
-        db.add(
-            AIUsage(
-                user_id=current_user.id,
-                operation="classify_ticket",
-                success=True,
-            )
-        )
-        db.commit()
-
-        if isinstance(result, dict):
-            return ClassifyTicketResponse(**result)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error classifying ticket: {str(e)}",
         )
 
 

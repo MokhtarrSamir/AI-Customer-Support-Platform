@@ -3,11 +3,16 @@ from pydantic import BaseModel, ConfigDict
 
 from app.models.ticket import TicketCategory, TicketPriority, TicketStatus
 
+class TicketCustomerResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CreateTicketRequest(BaseModel):
     subject: str
     description: str
-    category: TicketCategory
     message: str
 
 class TicketResponse(BaseModel):
@@ -18,6 +23,7 @@ class TicketResponse(BaseModel):
     priority: TicketPriority
     status: TicketStatus
     customer_id: int
+    customer: TicketCustomerResponse
     assigned_agent_id: int | None
     created_at: datetime
     updated_at: datetime

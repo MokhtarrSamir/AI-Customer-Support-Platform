@@ -8,6 +8,8 @@ from app.models.user import User, UserRole, AccountStatus
 from app.models.ticket import Ticket
 from app.models.ticket_message import TicketMessage
 from app.schemas.ticket import CreateTicketRequest, TicketResponse, UpdateTicketRequest, AssignTicketRequest
+from app.services.ai_service import classify_ticket
+from app.models.ai_usage import AIUsage
 
 router = APIRouter(
     prefix="/tickets",
@@ -25,27 +27,63 @@ def create_ticket(
             status_code=403,
             detail="Only customers can create tickets",
         )
-    ticket = Ticket(
-        subject=data.subject,
-        description=data.description,
-        category=data.category,
-        customer_id=current_user.id,
-    )
 
-    db.add(ticket)
-    db.flush()
+    try:
+        classification = classify_ticket(
+            subject=data.subject,
+            description=data.description,
+        )
 
-    message = TicketMessage(
-        content=data.message,
-        ticket_id=ticket.id,
-        sender_id=current_user.id,
-    )
+        ticket = Ticket(
+            subject=data.subject,
+            description=data.description,
+            category=classification.category,
+            priority=classification.priority,
+            ai_summary=classification.summary,
+            ai_suggested_action=classification.suggested_action,
+            customer_id=current_user.id,
+        )
 
-    db.add(message)
-    db.commit()
-    db.refresh(ticket)
+        db.add(ticket)
+        db.flush()
 
-    return ticket
+        message = TicketMessage(
+            content=data.message,
+            ticket_id=ticket.id,
+            sender_id=current_user.id,
+        )
+
+        db.add(message)
+
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="classify_ticket",
+                success=True,
+            )
+        )
+
+        db.commit()
+        db.refresh(ticket)
+
+        return ticket
+
+    except Exception as e:
+        db.rollback()
+
+        db.add(
+            AIUsage(
+                user_id=current_user.id,
+                operation="classify_ticket",
+                success=False,
+            )
+        )
+        db.commit()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating ticket: {str(e)}",
+        )
 
 @router.get("", response_model=list[TicketResponse])
 def get_tickets(

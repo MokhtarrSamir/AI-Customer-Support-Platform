@@ -83,13 +83,14 @@ def escalation_node(state: AgentState):
     }
 
 def decide_route(state: AgentState):
-    intent = state.get("intent")
-    
-    if intent == "escalate_ticket":
-        return "escalation"
-    elif state.get("tool_required"):
+    if state.get("tool_required"):
         return "execute_tool"
         
+    return "generate_response"
+
+def decide_post_tool(state: AgentState):
+    if state.get("intent") == "escalate_ticket":
+        return "escalation"
     return "generate_response"
 
 workflow = StateGraph(AgentState)
@@ -108,7 +109,11 @@ workflow.add_conditional_edges(
     decide_route
 )
 
-workflow.add_edge("execute_tool", "generate_response")
+workflow.add_conditional_edges(
+    "execute_tool",
+    decide_post_tool
+)
+
 workflow.add_edge("generate_response", END)
 workflow.add_edge("escalation", END)
 

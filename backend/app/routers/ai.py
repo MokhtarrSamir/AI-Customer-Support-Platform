@@ -84,6 +84,15 @@ def suggest_response(
                 detail=f"Ticket #{data.ticket_id} not found",
             )
 
+        if (
+            current_user.role == UserRole.SUPPORT_AGENT
+            and ticket.assigned_agent_id != current_user.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not allowed to generate a suggestion for this ticket",
+            )
+
         context = (
             f"Ticket Subject: {ticket.subject}\n"
             f"Ticket Description: {ticket.description}\n"

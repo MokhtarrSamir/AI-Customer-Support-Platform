@@ -1,15 +1,15 @@
 from app.agent.graph import llm
-from app.agent.prompts import CLASSIFY_TICKET_PROMPT
+from app.agent.prompts import classify_ticket_template
 from app.schemas.ai import ClassifyTicketResponse
 
 
 def classify_ticket(subject: str, description: str) -> ClassifyTicketResponse:
     structured_llm = llm.with_structured_output(ClassifyTicketResponse)
 
-    prompt = CLASSIFY_TICKET_PROMPT.format(
-        subject=subject,
-        description=description,
-    )
+    prompt = classify_ticket_template.invoke({
+        "subject": subject,
+        "description": description,
+    })
 
     result = structured_llm.invoke(prompt)
 

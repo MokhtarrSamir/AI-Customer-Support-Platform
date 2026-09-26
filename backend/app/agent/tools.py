@@ -2,18 +2,19 @@ from typing import Optional, Annotated
 from langgraph.prebuilt import InjectedState
 from langchain_core.tools import tool
 from app.core.database import SessionLocal
-from app.models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus
-from app.models.ticket_message import TicketMessage
+from app.models.ticket import TicketCategory, TicketPriority, TicketStatus
+from app.services.notification_service import trigger_n8n_webhook
+from app.services import ticket_service
 
 @tool
 def get_customer_tickets(customer_id: Annotated[int, InjectedState("customer_id")]) -> str:
     """Retrieve all tickets belonging to a specific customer using their customer ID."""
     db = SessionLocal()
     try:
-        tickets = db.query(Ticket).filter(Ticket.customer_id == customer_id).all()
+        tickets = ticket_service.get_customer_tickets(db, customer_id)
         if not tickets:
             return f"No tickets found for customer ID {customer_id}."
-        
+
         results = [f"Ticket #{t.id}: {t.subject} - Status: {t.status.value} - Priority: {t.priority.value}" for t in tickets]
         return "\n".join(results)
     except Exception as e:
@@ -27,11 +28,7 @@ def get_ticket_details(ticket_id: int, customer_id: Annotated[int, InjectedState
     Requires the customer_id to ensure the ticket belongs to the requesting user."""
     db = SessionLocal()
     try:
-        ticket = (
-            db.query(Ticket)
-            .filter(Ticket.id == ticket_id, Ticket.customer_id == customer_id)
-            .first()
-        )
+        ticket = ticket_service.get_customer_ticket(db, ticket_id, customer_id)
         if not ticket:
             return f"Ticket #{ticket_id} was not found or you do not have permission to view it."
 
@@ -73,17 +70,14 @@ def create_ticket(
         priority_enum = TicketPriority.MEDIUM
 
     try:
-        new_ticket = Ticket(
+        new_ticket = ticket_service.create_customer_ticket(
+            db,
             customer_id=customer_id,
             subject=subject,
             description=description,
             category=category_enum,
             priority=priority_enum,
-            status=TicketStatus.OPEN
         )
-        db.add(new_ticket)
-        db.commit()
-        db.refresh(new_ticket)
 
         return (
             f"Ticket #{new_ticket.id} created successfully.\n"
@@ -105,11 +99,7 @@ def check_ticket_status(ticket_id: int, customer_id: Annotated[int, InjectedStat
     """
     db = SessionLocal()
     try:
-        ticket = (
-            db.query(Ticket)
-            .filter(Ticket.id == ticket_id, Ticket.customer_id == customer_id)
-            .first()
-        )
+        ticket = ticket_service.get_customer_ticket(db, ticket_id, customer_id)
         if not ticket:
             return f"Ticket #{ticket_id} was not found or does not belong to you."
 
@@ -134,11 +124,7 @@ def update_ticket(
     """
     db = SessionLocal()
     try:
-        ticket = (
-            db.query(Ticket)
-            .filter(Ticket.id == ticket_id, Ticket.customer_id == customer_id)
-            .first()
-        )
+        ticket = ticket_service.get_customer_ticket(db, ticket_id, customer_id)
         if not ticket:
             return f"Ticket #{ticket_id} was not found or does not belong to you."
 
@@ -146,37 +132,40 @@ def update_ticket(
             return f"Ticket #{ticket_id} is closed and cannot be updated. A new ticket can be opened instead."
 
         updated_fields = []
-        has_actual_changes = False
 
         if status:
             try:
                 new_status = TicketStatus(status.lower())
-                if ticket.status == new_status:
-                    updated_fields.append(f"Status is already '{new_status.value}'")
-                else:
-                    ticket.status = new_status
-                    updated_fields.append(f"Status to '{new_status.value}'")
-                    has_actual_changes = True
             except ValueError:
                 return f"Invalid status: '{status}'."
+
+            if new_status in (TicketStatus.RESOLVED, TicketStatus.CLOSED):
+                return (
+                    "Customers cannot mark a ticket as resolved or closed. "
+                    "A support agent will confirm resolution. "
+                    "If your issue is fixed, you can let us know and we'll close it from our side."
+                )
+
+            if ticket.status == new_status:
+                updated_fields.append(f"Status is already '{new_status.value}'")
+            else:
+                ticket_service.update_ticket_status(db, ticket, new_status)
+                updated_fields.append(f"Status to '{new_status.value}'")
 
         if priority:
             try:
                 new_priority = TicketPriority(priority.lower())
-                if ticket.priority == new_priority:
-                    updated_fields.append(f"Priority is already '{new_priority.value}'")
-                else:
-                    ticket.priority = new_priority
-                    updated_fields.append(f"Priority to '{new_priority.value}'")
-                    has_actual_changes = True
             except ValueError:
                 return f"Invalid priority: '{priority}'."
 
+            if ticket.priority == new_priority:
+                updated_fields.append(f"Priority is already '{new_priority.value}'")
+            else:
+                ticket_service.update_ticket_priority(db, ticket, new_priority)
+                updated_fields.append(f"Priority to '{new_priority.value}'")
+
         if not updated_fields:
             return "No valid fields were provided to update."
-
-        if has_actual_changes:
-            db.commit()
 
         return f"Ticket #{ticket_id} result: " + ", ".join(updated_fields)
 
@@ -194,27 +183,28 @@ def escalate_ticket(ticket_id: int, customer_id: Annotated[int, InjectedState("c
     """
     db = SessionLocal()
     try:
-        ticket = (
-            db.query(Ticket)
-            .filter(Ticket.id == ticket_id, Ticket.customer_id == customer_id)
-            .first()
-        )
+        ticket = ticket_service.get_customer_ticket(db, ticket_id, customer_id)
         if not ticket:
             return f"Ticket #{ticket_id} was not found or does not belong to you."
 
         if ticket.status in [TicketStatus.RESOLVED, TicketStatus.CLOSED]:
             return f"Ticket #{ticket_id} cannot be escalated because it is already {ticket.status.value}."
 
-        ticket.priority = TicketPriority.CRITICAL
-        
-        escalation_message = TicketMessage(
+        ticket_service.update_ticket_priority(db, ticket, TicketPriority.CRITICAL)
+        ticket_service.add_ticket_message(
+            db,
             ticket_id=ticket.id,
             sender_id=customer_id,
-            content=f"[ESCALATION REASON]: {reason}"
+            content=f"[ESCALATION REASON]: {reason}",
         )
-        db.add(escalation_message)
 
-        db.commit()
+        trigger_n8n_webhook("ticket-escalation", {
+            "ticket_id": ticket.id,
+            "customer": customer_id,
+            "subject": ticket.subject,
+            "priority": ticket.priority.value,
+            "status": "Escalated",
+        })
 
         return (
             f"Ticket #{ticket.id} has been escalated to CRITICAL priority.\n"

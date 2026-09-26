@@ -10,6 +10,7 @@ from app.models.ticket_message import TicketMessage
 from app.schemas.ticket import CreateTicketRequest, TicketResponse, UpdateTicketRequest, AssignTicketRequest
 from app.services.ai_service import classify_ticket
 from app.models.ai_usage import AIUsage
+from app.services.notification_service import trigger_n8n_webhook
 
 router = APIRouter(
     prefix="/tickets",
@@ -65,6 +66,15 @@ def create_ticket(
 
         db.commit()
         db.refresh(ticket)
+
+        trigger_n8n_webhook("new-ticket", {
+            "ticket_id": ticket.id,
+            "customer": current_user.name,
+            "subject": ticket.subject,
+            "category": ticket.category.value,
+            "priority": ticket.priority.value,
+            "status": ticket.status.value,
+        })
 
         return ticket
 

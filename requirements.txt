@@ -13,3 +13,5 @@ langgraph
 langchain_groq
 langchain-core
 python-dotenv
+httpx
+pytest

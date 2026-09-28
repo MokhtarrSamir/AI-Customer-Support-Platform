@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User, UserRole, AccountStatus
-from app.models.ticket import Ticket
+from app.models.ticket import Ticket, TicketPriority
 from app.models.ticket_message import TicketMessage
 from app.schemas.ticket import CreateTicketRequest, TicketResponse, UpdateTicketRequest, AssignTicketRequest
 from app.services.ai_service import classify_ticket
@@ -194,6 +194,8 @@ def update_ticket(
             detail="Not allowed to update this ticket",
         )
 
+    previous_priority = ticket.priority
+
     if data.status is not None:
         ticket.status = data.status
 
@@ -202,6 +204,18 @@ def update_ticket(
 
     db.commit()
     db.refresh(ticket)
+
+    if (
+        ticket.priority == TicketPriority.CRITICAL
+        and previous_priority != TicketPriority.CRITICAL
+    ):
+        trigger_n8n_webhook("ticket-escalation", {
+            "ticket_id": ticket.id,
+            "customer": ticket.customer.name,
+            "subject": ticket.subject,
+            "priority": ticket.priority.value,
+            "status": "Escalated",
+        })
 
     return ticket
 

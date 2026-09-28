@@ -1,0 +1,28 @@
+Approved. Proceed with the frontend implementation using the proposed structure.
+
+Decisions:
+
+1. Yes, use the stdlib `serve.py` on port `5173` with SPA fallback to `index.html`. Do not modify the backend CORS configuration.
+2. Yes, use Bootstrap via CDN. No npm, no React, no Vue, no Angular, and no build step.
+
+Additional requirements:
+
+* Do not modify any backend files.
+* Do not add fake/mock data or fake API responses.
+* Treat the existing backend implementation as the source of truth.
+* Implement real API calls for the endpoints listed in your inventory.
+* Enforce frontend role-based navigation/UI, but never rely on frontend RBAC for security; the backend remains authoritative.
+* Use real URL-based routing with History API so browser Back/Forward and refresh work correctly on routes such as `/tickets/15`.
+* Keep the code modular and easy for a student who knows HTML, CSS, and JavaScript to understand.
+* Don't over-engineer the frontend.
+* Handle loading, empty, 401, 403, 404, 500, and network-error states clearly.
+* For unsupported backend features, don't fake them. Show appropriate UI or explanatory messages.
+* For `/ai/chat/stream`, don't pretend it is real streaming. Use `/ai/chat` for the normal chat experience and only expose the returned events as an optional debug/agent-steps view.
+* Follow the actual backend authorization rules, including:
+
+  * Customers cannot update ticket status/priority.
+  * Admins cannot currently send ticket messages.
+  * Only admins should get the ticket assignment control.
+* Before considering the implementation complete, test the frontend against the actual FastAPI API and verify routing, authentication, role-based pages, API errors, and responsive behavior.
+
+Start implementing now.

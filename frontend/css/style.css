@@ -1,0 +1,318 @@
+/* Custom styles on top of Bootstrap.
+
+   The layout is a fixed sidebar plus a top bar on desktop, and an off-canvas
+   sidebar on small screens. Everything else uses Bootstrap utility classes. */
+
+:root {
+  --sidebar-width: 250px;
+  --sidebar-bg: #10182b;
+  --sidebar-text: #c7d0e0;
+  --sidebar-active: #1e2a45;
+}
+
+body {
+  min-height: 100vh;
+  background-color: #f4f6fb;
+}
+
+.app-layout {
+  min-height: 100vh;
+}
+
+/* ---------- sidebar ---------- */
+
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  z-index: 1040;
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-title {
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sidebar-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+.sidebar-nav {
+  flex-grow: 1;
+  padding: 0.75rem 0.75rem 1rem;
+  overflow-y: auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.15rem;
+  border-radius: 0.5rem;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  font-size: 0.925rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-link:hover {
+  background-color: var(--sidebar-active);
+  color: #fff;
+}
+
+.sidebar-link.is-active {
+  background-color: var(--sidebar-active);
+  color: #fff;
+  font-weight: 500;
+}
+
+.sidebar-foot {
+  padding: 0.85rem 1rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 1035;
+}
+
+.sidebar-backdrop.is-visible {
+  display: block;
+}
+
+/* ---------- main area ---------- */
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background-color: #fff;
+  border-bottom: 1px solid #e6e9f0;
+}
+
+.topbar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sidebar-toggle {
+  color: #333;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.user-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #eef1f8;
+  color: #4a5568;
+}
+
+.app-content {
+  flex-grow: 1;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+@media (min-width: 992px) {
+  .app-main {
+    margin-left: var(--sidebar-width);
+  }
+
+  .app-content {
+    padding: 2rem 2rem 3rem;
+  }
+}
+
+/* ---------- shared pieces ---------- */
+
+.brand-mark {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, #4f6df5, #7b5cf0);
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.brand-mark-sm {
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.1rem;
+  border-radius: 0.6rem;
+}
+
+.stat-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  font-size: 1.25rem;
+  background-color: rgba(79, 109, 245, 0.1);
+}
+
+.stat-icon.text-info { background-color: rgba(13, 202, 240, 0.12); }
+.stat-icon.text-success { background-color: rgba(25, 135, 84, 0.12); }
+.stat-icon.text-danger { background-color: rgba(220, 53, 69, 0.12); }
+.stat-icon.text-secondary { background-color: rgba(108, 117, 125, 0.12); }
+
+.empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #eef1f8;
+  color: #7a869a;
+  font-size: 1.5rem;
+}
+
+/* ---------- auth pages ---------- */
+
+.auth-wrapper {
+  min-height: calc(100vh - 4.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+}
+
+@media (min-width: 992px) {
+  .auth-wrapper {
+    min-height: 100vh;
+  }
+}
+
+/* ---------- messages ---------- */
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  min-height: 28rem;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow-y: auto;
+  max-height: 32rem;
+  padding-right: 0.25rem;
+}
+
+.message {
+  max-width: 85%;
+}
+
+.message-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+  margin-bottom: 0.2rem;
+  color: #6c757d;
+}
+
+.message-bubble {
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.93rem;
+}
+
+.message-mine {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.message-mine .message-bubble {
+  background-color: #4f6df5;
+  color: #fff;
+  text-align: left;
+}
+
+.message-theirs {
+  align-self: flex-start;
+}
+
+.message-theirs .message-bubble {
+  background-color: #f1f3f9;
+  color: #212529;
+}
+
+/* ---------- toasts ---------- */
+
+.toast-host {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1080;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.modal {
+  overflow-y: auto;
+}
+
+@media (max-width: 991.98px) {
+  /* transform alone would leave the closed sidebar focusable and exposed to
+     screen readers, so it is hidden from both as well */
+  .app-sidebar {
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0.2s ease;
+  }
+
+  .app-sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+}

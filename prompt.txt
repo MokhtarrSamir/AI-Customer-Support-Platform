@@ -1,0 +1,806 @@
+You are working on the frontend of my existing graduation project:
+
+AI Customer Support Platform
+
+Repository:
+MokhtarrSamir/AI-Customer-Support-Platform
+
+IMPORTANT:
+This is a frontend-only task.
+
+DO NOT modify the backend code.
+DO NOT modify the database models.
+DO NOT modify API endpoints.
+DO NOT change authentication or authorization logic.
+DO NOT create fake/mock API data.
+DO NOT replace real backend functionality with frontend-only logic.
+
+Your job is to build a NEW frontend from scratch that works with the EXISTING FastAPI backend.
+
+==================================================
+1. FIRST: ANALYZE THE EXISTING PROJECT
+==================================================
+
+Before writing any frontend code:
+
+1. Inspect the entire backend structure.
+2. Inspect all FastAPI routers.
+3. Inspect schemas/models where necessary to understand request/response formats.
+4. Inspect authentication and authorization logic.
+5. Identify every available API endpoint.
+6. Identify which role is allowed to use each endpoint:
+   - CUSTOMER
+   - SUPPORT_AGENT
+   - ADMIN
+7. Identify the exact request body and expected response for each endpoint.
+8. Inspect the existing frontend only to understand what functionality already exists, but DO NOT reuse its architecture if it is problematic.
+9. Create a short internal implementation plan before coding.
+
+The backend is the source of truth.
+
+If something in the frontend conflicts with the backend behavior, follow the backend.
+
+==================================================
+2. FRONTEND TECHNOLOGY
+==================================================
+
+Use:
+
+- HTML
+- CSS
+- Vanilla JavaScript
+- Bootstrap
+
+You may use Bootstrap Icons if useful.
+
+Do NOT use:
+- React
+- Vue
+- Angular
+- Next.js
+- Tailwind
+- TypeScript
+- complicated frontend frameworks
+
+React should only be considered if there is a strong technical reason, but the default implementation MUST be Vanilla JavaScript.
+
+Keep the implementation understandable for a student who studied HTML, CSS and JavaScript.
+
+Do not over-engineer the frontend.
+
+==================================================
+3. GENERAL UI/UX
+==================================================
+
+Build a clean, modern, professional customer-support dashboard.
+
+The UI should look like a real SaaS customer support platform.
+
+Suggested style:
+
+- Sidebar navigation
+- Top navbar
+- Responsive Bootstrap layout
+- Cards
+- Tables
+- Badges
+- Modals
+- Forms
+- Alerts/toasts
+- Loading states
+- Empty states
+- Error states
+- Confirmation dialogs for destructive actions
+
+Keep the design professional but not overly complicated.
+
+Do NOT spend most of the work creating fancy animations.
+
+Focus on:
+1. Correct functionality
+2. Correct API integration
+3. Correct authorization
+4. Good usability
+5. Clean responsive UI
+
+==================================================
+4. AUTHENTICATION
+==================================================
+
+Implement real authentication using the existing backend.
+
+Required:
+
+- Register
+- Login
+- Get current user
+- Logout
+- Store JWT access token safely on the frontend
+- Automatically attach:
+
+Authorization: Bearer <token>
+
+to authenticated API requests.
+
+The frontend must NOT assume the user's role.
+
+After login:
+
+1. Call /auth/me
+2. Read the actual role returned by the backend
+3. Load the correct dashboard for that role.
+
+Handle:
+
+- invalid credentials
+- expired/invalid token
+- unauthorized requests
+- forbidden requests
+- backend validation errors
+- network errors
+
+Do not expose or hardcode JWT secrets.
+
+==================================================
+5. THREE USER ROLES
+==================================================
+
+The frontend MUST support all three roles:
+
+1. CUSTOMER
+2. SUPPORT_AGENT
+3. ADMIN
+
+Each role must have its own appropriate navigation and dashboard.
+
+Never show actions that the current role is not allowed to perform.
+
+The frontend can hide unauthorized UI actions for usability, BUT backend authorization remains the real security layer.
+
+==================================================
+6. CUSTOMER FRONTEND
+==================================================
+
+Customer should be able to:
+
+### Dashboard
+Show:
+- Welcome section
+- My ticket summary
+- Open tickets
+- In-progress tickets
+- Resolved tickets
+- Recent tickets
+- Quick access to AI Assistant
+- Quick access to Create Ticket
+
+### Tickets
+Customer can:
+
+- View their own tickets
+- Search/filter tickets
+- Open ticket details
+- View ticket status
+- View priority
+- View category
+- View ticket conversation
+- Send messages to their own tickets
+
+Use:
+
+GET /tickets
+GET /tickets/{ticket_id}
+GET /tickets/{ticket_id}/messages
+POST /tickets/{ticket_id}/messages
+
+### Create Ticket
+
+Use:
+
+POST /tickets
+
+The form should include the fields required by the backend schema.
+
+Do not invent fields that the backend does not accept.
+
+Explain to the user that ticket classification/priority may be handled by the backend AI.
+
+### AI Assistant
+
+Customer can use:
+
+POST /ai/chat
+
+Provide a simple chat UI.
+
+Also support the existing streaming endpoint if useful:
+
+POST /ai/chat/stream
+
+And structured endpoint:
+
+POST /ai/chat/structured
+
+Do not create fake AI responses.
+
+Every response must come from the real backend.
+
+==================================================
+7. SUPPORT AGENT FRONTEND
+==================================================
+
+Support Agent should have:
+
+### Dashboard
+
+Show:
+- Assigned ticket count
+- Open tickets
+- In-progress tickets
+- Critical tickets
+- Recent assigned tickets
+- AI assistant access
+- AI response suggestions
+
+### Assigned Tickets
+
+Use:
+
+GET /tickets
+
+The backend already filters tickets based on the authenticated role.
+
+Do NOT fetch all tickets and filter them manually on the frontend.
+
+The backend is responsible for authorization and filtering.
+
+### Ticket Details
+
+Support Agent can:
+
+- View assigned ticket
+- View conversation
+- Send message
+- Update ticket status
+- Update ticket priority
+- Assign ticket if backend allows it
+- Generate AI suggested response
+
+Use the actual backend endpoints:
+
+GET /tickets/{ticket_id}
+
+GET /tickets/{ticket_id}/messages
+
+POST /tickets/{ticket_id}/messages
+
+PATCH /tickets/{ticket_id}
+
+PATCH /tickets/{ticket_id}/assign
+
+POST /ai/suggest-response
+
+Only show controls that the backend allows for the current user.
+
+### AI Suggested Response
+
+Create a simple interface where the support agent:
+
+1. Selects an assigned ticket
+2. Requests an AI response suggestion
+3. Receives the real response from:
+   POST /ai/suggest-response
+4. Can edit the suggested response
+5. Can send the final response using:
+   POST /tickets/{ticket_id}/messages
+
+IMPORTANT:
+AI suggestions must require human review before sending.
+
+Do not automatically send AI-generated responses.
+
+==================================================
+8. ADMIN FRONTEND
+==================================================
+
+Admin dashboard should include:
+
+### Dashboard / Statistics
+
+Use:
+
+GET /admin/statistics
+
+Display:
+- Total tickets
+- Open tickets
+- In-progress tickets
+- Resolved tickets
+- Critical tickets
+- Tickets per category
+- Tickets per support agent
+
+Use Bootstrap cards/tables/charts only if simple to implement.
+
+Do not add a heavy charting library unless absolutely necessary.
+
+### User Management
+
+Use:
+
+GET /users
+GET /users/{user_id}
+
+Admin should be able to:
+
+- View users
+- View user details
+- See role
+- See account status
+
+Admin actions:
+
+PATCH /users/{user_id}/disable
+
+PATCH /users/{user_id}/activate
+
+DELETE /users/{user_id}
+
+Add confirmation before delete/disable actions.
+
+Never allow the frontend to offer deleting the currently logged-in admin if the backend prohibits it.
+
+### Customers
+
+Use:
+
+GET /admin/customers
+
+Display customers in a clean table.
+
+### Support Agents
+
+Use:
+
+GET /admin/support-agents
+
+Display support agents and their account status.
+
+### Support Activity
+
+Use:
+
+GET /admin/support-activity
+
+Display useful support activity information such as:
+
+- Assigned tickets
+- Resolved tickets
+- Messages sent
+
+### AI Usage
+
+Use:
+
+GET /admin/ai-usage
+
+Display:
+- User
+- Operation
+- Success/failure
+- Created date
+
+==================================================
+9. TICKET AUTHORIZATION
+==================================================
+
+This is extremely important.
+
+The frontend must respect the backend's existing authorization model.
+
+Customer:
+- Can access their own tickets
+- Can access their own ticket messages
+- Can create tickets
+- Can chat with AI
+- Cannot modify ticket status/priority
+- Cannot access another customer's ticket
+
+Support Agent:
+- Can access assigned tickets
+- Can access assigned ticket messages
+- Can update assigned tickets
+- Can send messages on assigned tickets
+- Can generate AI suggestions for assigned tickets
+
+Admin:
+- Can access all tickets
+- Can view ticket messages
+- Can update tickets
+- Can assign tickets
+- Can manage users
+- Can access statistics
+- Can access AI usage
+- Can access customer/agent lists
+
+IMPORTANT:
+
+Do not implement authorization only on the frontend.
+
+The backend is the authority.
+
+If the backend returns 401/403, show a proper message instead of breaking the application.
+
+==================================================
+10. ROUTING / NAVIGATION
+==================================================
+
+Do NOT repeat the previous frontend's navigation problem.
+
+The frontend must have proper URL-based navigation.
+
+Use either:
+
+- simple History API routing with pushState/popstate
+
+or
+
+- another lightweight approach compatible with Vanilla JS.
+
+Do NOT rely only on:
+
+setView("ticket:123")
+
+or a single React-style state variable.
+
+Pages should have meaningful URLs such as:
+
+/login
+/dashboard
+/tickets
+/tickets/123
+/tickets/create
+/ai
+/users
+/statistics
+
+Browser Back and Forward MUST work correctly.
+
+Refreshing a page should not randomly return to the dashboard.
+
+Ticket details must have a proper URL.
+
+Example:
+
+/tickets/15
+
+Back from /tickets/15 should return to /tickets.
+
+==================================================
+11. API CLIENT
+==================================================
+
+Create one centralized API utility in JavaScript.
+
+For example:
+
+api.js
+
+It should handle:
+
+- Base URL
+- JWT token
+- Authorization header
+- JSON headers
+- GET
+- POST
+- PATCH
+- DELETE
+- Error handling
+- 401 handling
+- 403 handling
+
+Do NOT repeat fetch configuration throughout every page.
+
+Use a clean structure such as:
+
+frontend/
+    index.html
+    css/
+        style.css
+    js/
+        api.js
+        auth.js
+        router.js
+        app.js
+        pages/
+            login.js
+            dashboard.js
+            tickets.js
+            ticket-details.js
+            create-ticket.js
+            ai-chat.js
+            users.js
+            statistics.js
+            ...
+    assets/
+
+You can change the structure if you have a better SIMPLE Vanilla JS structure.
+
+==================================================
+12. ERROR HANDLING
+==================================================
+
+Every API request should have proper handling for:
+
+200/201 success
+400 validation error
+401 unauthorized
+403 forbidden
+404 not found
+500 server error
+network failure
+
+Show user-friendly Bootstrap alerts/toasts.
+
+Never leave the user with a blank page.
+
+If an API call fails, show an understandable error.
+
+Never silently swallow important errors.
+
+==================================================
+13. LOADING STATES
+==================================================
+
+Every page that waits for the backend should show a loading state.
+
+Examples:
+
+- Loading tickets...
+- Loading users...
+- Generating AI response...
+- Sending message...
+- Updating ticket...
+
+Disable buttons when necessary to prevent duplicate requests.
+
+==================================================
+14. RESPONSIVENESS
+==================================================
+
+The application must work reasonably well on:
+
+- Desktop
+- Laptop
+- Tablet
+- Mobile
+
+Use Bootstrap's responsive utilities/grid system.
+
+==================================================
+15. NO MOCK MODE
+==================================================
+
+IMPORTANT:
+
+Do NOT implement a mock backend.
+
+Do NOT use seedTickets.
+
+Do NOT create fake users.
+
+Do NOT hardcode ticket data.
+
+Do NOT fake AI responses.
+
+Everything must use the real FastAPI backend.
+
+The only allowed hardcoded frontend data is static UI information such as navigation labels and enum display labels.
+
+==================================================
+16. ENVIRONMENT / API URL
+==================================================
+
+The backend currently runs locally.
+
+Use a configurable API base URL.
+
+Default:
+
+http://localhost:8000
+
+Do not hardcode the API URL in every file.
+
+Keep it in one configuration location.
+
+The frontend should work with:
+
+http://localhost:8000
+
+during local development.
+
+==================================================
+17. BACKEND COMPATIBILITY
+==================================================
+
+Before implementing each feature, verify:
+
+- endpoint path
+- HTTP method
+- request body
+- authentication requirement
+- role requirement
+- response schema
+
+Do not guess API contracts.
+
+If the backend does not currently provide a requested feature, DO NOT invent a frontend implementation pretending it works.
+
+Instead, clearly report:
+
+"Backend endpoint not available."
+
+==================================================
+18. IMPORTANT BACKEND LIMITATION CHECK
+==================================================
+
+While inspecting the backend, identify endpoints that exist but may have limitations or unusual behavior.
+
+For example:
+
+- /ai/chat/stream may return collected events rather than a true HTTP stream.
+- Some endpoints may be role-restricted.
+- Some operations may be allowed only for assigned agents.
+- Admin-only endpoints must not be shown to other roles.
+
+Build the frontend around the ACTUAL behavior of the backend.
+
+Do not assume an endpoint behaves differently just because its name suggests it.
+
+==================================================
+19. SECURITY
+==================================================
+
+Do not:
+
+- expose JWT secrets
+- store passwords
+- trust frontend role values for authorization
+- bypass backend authorization
+- send unauthorized requests intentionally
+- put sensitive information in URLs unnecessarily
+
+JWT token handling should be centralized.
+
+If token is invalid/expired and backend returns 401:
+
+- clear authentication state
+- redirect to login
+- show a clear message
+
+==================================================
+20. CODE QUALITY
+==================================================
+
+The code should be:
+
+- readable
+- modular
+- beginner-friendly
+- maintainable
+- not over-engineered
+
+Use meaningful variable/function names.
+
+Add comments only where they explain something important.
+
+Avoid huge single JavaScript files.
+
+Avoid unnecessary abstractions.
+
+Do not introduce a complicated state-management system.
+
+==================================================
+21. DO NOT MODIFY BACKEND
+==================================================
+
+This is a strict requirement.
+
+Only modify/create frontend files.
+
+If you discover a backend problem:
+
+DO NOT fix it automatically.
+
+Instead report:
+
+Backend issue found:
+<explanation>
+
+Suggested backend fix:
+<explanation>
+
+But keep the frontend implementation compatible with the current backend.
+
+==================================================
+22. TESTING
+==================================================
+
+After implementing the frontend:
+
+1. Run/build the frontend.
+2. Fix all build/runtime errors.
+3. Test authentication.
+4. Test each role separately.
+5. Test protected endpoints.
+6. Test unauthorized access behavior.
+7. Test ticket list.
+8. Test ticket details.
+9. Test ticket messages.
+10. Test create ticket.
+11. Test ticket updates.
+12. Test ticket assignment.
+13. Test admin user management.
+14. Test admin statistics.
+15. Test AI chat.
+16. Test AI suggested response.
+17. Test browser Back/Forward.
+18. Test page refresh.
+19. Test responsive layout.
+
+Do not declare the frontend complete just because the page renders.
+
+==================================================
+23. IMPORTANT: USE REAL ROLE-BASED TESTING
+==================================================
+
+You should test using real accounts/credentials available in the project environment.
+
+If credentials are not available, tell me exactly what accounts/roles are needed for testing.
+
+Do not create fake authentication logic just to demonstrate the UI.
+
+==================================================
+24. FINAL RESULT
+==================================================
+
+The final frontend should feel like a complete but reasonably simple graduation-project frontend.
+
+It should demonstrate:
+
+- HTML
+- CSS
+- JavaScript
+- Bootstrap
+- REST API integration
+- JWT authentication
+- Role-Based Access Control
+- CRUD operations
+- AI integration
+- Proper routing
+- Responsive design
+- Error handling
+
+It should NOT look like an over-engineered enterprise application.
+
+Keep it simple enough for a student to understand and explain during the project presentation.
+
+==================================================
+25. BEFORE YOU START CODING
+==================================================
+
+First inspect the backend and produce:
+
+1. List of all endpoints
+2. HTTP method
+3. Required role
+4. Request body
+5. Response
+6. Frontend page that will consume the endpoint
+
+Then implement the frontend.
+
+Do not start by blindly generating files.
+
+The backend is the source of truth.

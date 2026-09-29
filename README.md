@@ -289,13 +289,17 @@ The AI never sends a message to a customer automatically.
 
 ## n8n Automation
 
-Exported workflows live in `n8n/workflows/`:
+Exported workflows live in `n8n/workflows/`. Two workflows are active:
 
-1. **New Ticket Notification** — triggered when a ticket is created; notifies the team via email.
-2. **Critical Ticket Escalation** — triggered when a ticket is escalated or reaches `critical` priority; sends an alert email.
-3. **Ticket Reporting (Google Sheets)** — logs ticket data to a Google Sheet for tracking and reporting.
+1. **`customer support automation`** — listens on the `new-ticket` webhook (triggered from `POST /tickets` on every new ticket) and sends a notification email built directly from the webhook payload (`ticket_id`, `customer`, `subject`, `priority`, `status`).
 
-Workflows are triggered by the backend via `trigger_n8n_webhook()`, which fires a fail-safe (non-blocking) POST request to the configured `N8N_WEBHOOK_URL` — a failure in n8n never breaks the main request.
+2. **`Customer Support - Ticket Escalation`** — listens on the `ticket-escalation` webhook, triggered whenever:
+   - the AI Agent's `escalate_ticket` tool is used, or
+   - a support agent/admin manually raises a ticket's priority to `critical` via `PATCH /tickets/{id}`.
+
+   The workflow branches on an `IF` node (priority is `Critical` **or** status is `Escalated`), sends an alert email, then reshapes the payload in a `Code` node and appends a row to a Google Sheet — so escalated/critical tickets are both alerted on by email and logged for tracking in one flow.
+
+Both webhooks are triggered by the backend via `trigger_n8n_webhook()` (`backend/app/services/notification_service.py`), which fires a fail-safe (non-blocking) POST request to the configured `N8N_WEBHOOK_URL` — a failure or downtime in n8n never breaks the main API request.
 
 ---
 

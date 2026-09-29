@@ -114,6 +114,11 @@ async function api(path,options={}){
  if(/^\/users\/\d+\/(disable|activate|role)$/.test(path)) return normalizeUser(data);
  return data;
 }
+function allowedViewsFor(role){
+ if(role==='ADMIN')return['dashboard','tickets','users','stats','chat'];
+ if(role==='SUPPORT_AGENT')return['dashboard','tickets','chat','suggest'];
+ return['dashboard','tickets','create','chat'];
+}
 const fmtStatus=s=>String(s||'').replaceAll('_',' ');
 const cls=s=>String(s||'').toLowerCase().replaceAll('_','-').replaceAll(' ','-');
 function Badge({children,type='neutral'}){return <span className={`badge ${type}`}>{children}</span>}
@@ -150,6 +155,9 @@ function Suggest({tickets}){
 function TicketDetails({id,ticket,setView,onUpdate,user}){
  const[messages,setMessages]=useState([]),[reply,setReply]=useState(''),[sending,setSending]=useState(false);
  const[agents,setAgents]=useState([]),[assigning,setAssigning]=useState(false);
+ const canManage=user?.role==='SUPPORT_AGENT'||user?.role==='ADMIN';
+ const canReply=user?.role==='CUSTOMER'||user?.role==='SUPPORT_AGENT';
+ const canSuggest=user?.role==='SUPPORT_AGENT';
  useEffect(()=>{api(`/tickets/${id}/messages`).then(setMessages).catch(()=>setMessages([]))},[id]);
  useEffect(()=>{if(user?.role==='ADMIN')api('/admin/support-agents').then(setAgents).catch(()=>setAgents([]))},[user]);
  if(!ticket)return <section className="panel"><button className="back" onClick={()=>setView('tickets')}>← Back</button><Empty text="Ticket not found."/></section>;
@@ -162,19 +170,23 @@ function TicketDetails({id,ticket,setView,onUpdate,user}){
    <div className="panel">
     <div className="detail-top"><div><div className="ticket-id">#{ticket.id}</div><h2>{ticket.subject}</h2><p>{ticket.description}</p></div><div><Badge type={`status-${cls(ticket.status)}`}>{fmtStatus(ticket.status)}</Badge><Badge type={`priority-${cls(ticket.priority)}`}>{ticket.priority}</Badge></div></div>
     <div className="meta-grid"><div><small>Customer</small><b>{ticket.customer?.name||ticket.customer||'Customer'}</b></div><div><small>Category</small><b>{ticket.category}</b></div><div><small>Created</small><b>{new Date(ticket.created_at).toLocaleDateString()}</b></div><div><small>Assigned agent</small><b>{ticket.assigned_agent_id?(agents.find(a=>a.id===ticket.assigned_agent_id)?.name||`Agent #${ticket.assigned_agent_id}`):'Unassigned'}</b></div></div>
-    <div className="conversation"><h3>Conversation</h3>{messages.map(m=><div className="message" key={m.id}><div className="message-avatar">{(m.sender?.name||m.sender||'U')[0]}</div><div><b>{m.sender?.name||m.sender||'User'}</b><small>{new Date(m.timestamp).toLocaleString()}</small><p>{m.content||m.message}</p></div></div>)}<div className="reply"><textarea rows="4" value={reply} onChange={e=>setReply(e.target.value)} placeholder="Write a reply…"/><div className="form-actions"><button className="primary" onClick={send} disabled={sending}>Send Reply</button></div></div></div>
+    <div className="conversation">
+     <h3>Conversation</h3>
+     {messages.map(m=><div className="message" key={m.id}><div className="message-avatar">{(m.sender?.name||m.sender||'U')[0]}</div><div><b>{m.sender?.name||m.sender||'User'}</b><small>{new Date(m.timestamp).toLocaleString()}</small><p>{m.content||m.message}</p></div></div>)}
+     {canReply&&<div className="reply"><textarea rows="4" value={reply} onChange={e=>setReply(e.target.value)} placeholder="Write a reply…"/><div className="form-actions"><button className="primary" onClick={send} disabled={sending}>Send Reply</button></div></div>}
+    </div>
    </div>
-   <aside className="detail-side">
-    <div className="panel">
+   {(canManage||canSuggest)&&<aside className="detail-side">
+    {canManage&&<div className="panel">
      <h3>Ticket controls</h3>
      <div className="controls">
       <label>Status<select value={ticket.status} onChange={e=>update('status',e.target.value)}><option>OPEN</option><option>IN_PROGRESS</option><option>WAITING_FOR_CUSTOMER</option><option>RESOLVED</option><option>CLOSED</option></select></label>
       <label>Priority<select value={ticket.priority} onChange={e=>update('priority',e.target.value)}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
       {user?.role==='ADMIN'&&<label>Assigned agent<select value={ticket.assigned_agent_id||''} onChange={e=>assign(e.target.value)} disabled={assigning}><option value="">Unassigned</option>{agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
      </div>
-    </div>
-    <div className="panel"><span className="pill">AI ASSISTANCE</span><h3>Need a suggested reply?</h3><p className="muted">Open AI Suggestions to draft a professional response with human confirmation.</p><button className="secondary full" onClick={()=>setView('suggest')}>Open AI Suggestions</button></div>
-   </aside>
+    </div>}
+    {canSuggest&&<div className="panel"><span className="pill">AI ASSISTANCE</span><h3>Need a suggested reply?</h3><p className="muted">Open AI Suggestions to draft a professional response with human confirmation.</p><button className="secondary full" onClick={()=>setView('suggest')}>Open AI Suggestions</button></div>}
+   </aside>}
   </div>
  </section>
 }
@@ -243,6 +255,10 @@ function App(){
  function handleLogin(u){setUser(u);resetView('dashboard')}
  function logout(){localStorage.clear();setUser(null);resetView('dashboard')}
  function updateTicket(t){setTickets(ts=>ts.map(x=>x.id===t.id?t:x))}
+ useEffect(()=>{
+  if(!user||view.startsWith('ticket:'))return;
+  if(!allowedViewsFor(user.role).includes(view))resetView('dashboard');
+ },[view,user]);
  if(!user)return <Login onLogin={handleLogin}/>;
  let content;
  if(loading)content=<div className="loading">Loading your workspace…</div>;

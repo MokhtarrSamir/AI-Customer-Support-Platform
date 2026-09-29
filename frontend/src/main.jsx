@@ -11,10 +11,6 @@ const normalizeTicket=t=>t?{...t,category:String(t.category||'general_inquiry').
 const normalizeTickets=ts=>Array.isArray(ts)?ts.map(normalizeTicket):ts;
 const backendEnum=v=>String(v||'').toLowerCase();
 
-/* ---------------------------------------------------------------------- */
-/* Router: بيستخدم browser history عشان زرار "رجوع" في المتصفح يرجعك     */
-/* للـ view اللي فاتت بدل ما يخرجك من الـ app خالص.                      */
-/* ---------------------------------------------------------------------- */
 function readViewFromHash(fallback){
  const raw=window.location.hash?window.location.hash.slice(1):'';
  return raw?decodeURIComponent(raw):fallback;

@@ -66,7 +66,7 @@
         "sendTo": "shahdhoda316@gmail.com",
         "subject": "🚨 Critical Ticket Escalation",
         "emailType": "text",
-        "message": "=A ticket has been escalated and requires admin attention.  Ticket ID: {{ $json.ticket_id }} Customer: {{ $json.customer }} Subject: {{ $json.subject }} Priority: {{ $json.priority }} Status: {{ $json.status }}",
+        "message": "=A ticket has been escalated and requires admin attention.  Ticket ID: {{ $json.body.ticket_id }} Customer: {{ $json.body.customer }} Subject: {{ $json.body.subject }} Priority: {{ $json.body.priority }} Status: {{ $json.body.status }}",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
@@ -105,11 +105,11 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Ticket ID": "{{ $json.body.ticket_id }}",
-            "Customer": "{{ $json.body.customer }}",
-            "Subject": "{{ $json.body.subject }}",
-            "Priority": "{{ $json.body.priority }}",
-            "Status": "{{ $json.body.status }}"
+            "Ticket ID": "={{$json[\"Ticket ID\"]}}",
+            "Customer": "={{$json[\"Customer\"]}}",
+            "Subject": "={{$json[\"Subject\"]}}",
+            "Priority": "={{$json[\"Priority\"]}}",
+            "Status": "={{$json[\"Status\"]}}"
           },
           "matchingColumns": [],
           "schema": [
@@ -167,10 +167,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        640,
-        -96
+        896,
+        -80
       ],
-      "id": "80873547-8b4d-417c-875b-621204e7f110",
+      "id": "106993e5-3a0e-4cca-b251-22c073b6f63d",
       "name": "Append row in sheet",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -178,6 +178,19 @@
           "name": "Google Sheets account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').first().json.body;\n\nreturn [\n  {\n    json: {\n      \"Ticket ID\": webhookData.ticket_id,\n      \"Customer\": webhookData.customer,\n      \"Subject\": webhookData.subject,\n      \"Priority\": webhookData.priority,\n      \"Status\": webhookData.status\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -80
+      ],
+      "id": "d8611072-e2f8-4637-9eea-c43cc4b2cdfb",
+      "name": "Code in JavaScript"
     }
   ],
   "pinData": {},
@@ -208,6 +221,17 @@
       "main": [
         [
           {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
             "node": "Append row in sheet",
             "type": "main",
             "index": 0
@@ -216,12 +240,12 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "e91886fc-d461-4340-8fdd-ff64b7ac0e5f",
+  "versionId": "409d0708-fb7b-4eca-b395-a0e8b928382a",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "15b08a3ee6cdce5fe37b86eafb1e29324d2499a37bec9ff1667818db1a45cabc"

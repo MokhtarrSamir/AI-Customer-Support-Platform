@@ -19,24 +19,10 @@
     },
     {
       "parameters": {
-        "url": "https://unbundle-drizzle-washtub.ngrok-free.dev/test/tickets/125",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        224,
-        0
-      ],
-      "id": "9995c42c-3bdd-4150-8fc8-f757ad153307",
-      "name": "HTTP Request"
-    },
-    {
-      "parameters": {
         "sendTo": "shahdhoda316@gmail.com",
         "subject": "New Support Ticket",
         "emailType": "text",
-        "message": "=A new support ticket has been created.  Ticket ID: {{ $node[\"HTTP Request\"].json[\"ticket_id\"] }} Customer: {{ $node[\"HTTP Request\"].json[\"customer\"] }} Subject: {{ $node[\"HTTP Request\"].json[\"subject\"] }} Category: {{ $node[\"HTTP Request\"].json[\"category\"] }} Priority: {{ $node[\"HTTP Request\"].json[\"priority\"] }} Status: {{ $node[\"HTTP Request\"].json[\"status\"] }}",
+        "message": "=A new support ticket has been created.  Ticket ID: {{ $json.body.ticket_id }} Customer: {{ $json.body.customer }} Subject: {{ $json.body.subject}}  Priority: {{ $json.body.priority }} Status: {{ $json.body.status }}",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
@@ -62,17 +48,6 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request": {
-      "main": [
-        [
-          {
             "node": "Send a message",
             "type": "main",
             "index": 0
@@ -81,12 +56,12 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "1ca945c6-89f8-4444-8f13-5996327b061f",
+  "versionId": "7e6f8ee8-edff-4f8f-86ea-22cb315b6902",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "15b08a3ee6cdce5fe37b86eafb1e29324d2499a37bec9ff1667818db1a45cabc"

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.ticket import Ticket, TicketCategory, TicketPriority, TicketStatus
@@ -45,6 +46,12 @@ def update_ticket_priority(db: Session, ticket: Ticket, priority: TicketPriority
 
 def update_ticket_status(db: Session, ticket: Ticket, status: TicketStatus) -> None:
     ticket.status = status
+
+    if status == TicketStatus.RESOLVED and ticket.resolved_at is None:
+        ticket.resolved_at = datetime.now(timezone.utc)
+    elif status in (TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.WAITING_FOR_CUSTOMER):
+        ticket.resolved_at = None
+
     db.commit()
 
 

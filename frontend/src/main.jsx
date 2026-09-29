@@ -11,6 +11,33 @@ const normalizeTicket=t=>t?{...t,category:String(t.category||'general_inquiry').
 const normalizeTickets=ts=>Array.isArray(ts)?ts.map(normalizeTicket):ts;
 const backendEnum=v=>String(v||'').toLowerCase();
 
+/* ---------------------------------------------------------------------- */
+/* Router: بيستخدم browser history عشان زرار "رجوع" في المتصفح يرجعك     */
+/* للـ view اللي فاتت بدل ما يخرجك من الـ app خالص.                      */
+/* ---------------------------------------------------------------------- */
+function readViewFromHash(fallback){
+ const raw=window.location.hash?window.location.hash.slice(1):'';
+ return raw?decodeURIComponent(raw):fallback;
+}
+function useViewRouter(initialView){
+ const[view,setViewState]=useState(()=>readViewFromHash(initialView));
+ useEffect(()=>{
+  function onPopState(){setViewState(readViewFromHash(initialView))}
+  window.addEventListener('popstate',onPopState);
+  return ()=>window.removeEventListener('popstate',onPopState);
+ },[initialView]);
+ function navigate(nextView){
+  if(nextView===view)return;
+  window.history.pushState({view:nextView},'','#'+encodeURIComponent(nextView));
+  setViewState(nextView);
+ }
+ function resetTo(nextView){
+  window.history.replaceState({view:nextView},'','#'+encodeURIComponent(nextView));
+  setViewState(nextView);
+ }
+ return[view,navigate,resetTo];
+}
+
 const seedTickets=[
  {id:125,subject:'Unable to login after password change',description:'I changed my password and now I cannot access my account.',category:'ACCOUNT_ISSUE',priority:'HIGH',status:'OPEN',customer_id:1,assigned_agent_id:2,customer:'Sara Ahmed',created_at:'2026-09-23T10:30:00',updated_at:'2026-09-24T12:10:00'},
  {id:126,subject:'Unexpected charge on my account',description:'There is a billing charge I do not recognize.',category:'BILLING',priority:'CRITICAL',status:'IN_PROGRESS',customer_id:1,assigned_agent_id:2,customer:'Omar Hassan',created_at:'2026-09-21T09:15:00',updated_at:'2026-09-24T16:20:00'},
@@ -18,11 +45,11 @@ const seedTickets=[
  {id:128,subject:'Cannot update billing address',description:'The billing address form keeps returning an error.',category:'ACCOUNT_ISSUE',priority:'LOW',status:'WAITING_FOR_CUSTOMER',customer_id:1,assigned_agent_id:2,customer:'Youssef Samy',created_at:'2026-09-17T09:00:00',updated_at:'2026-09-23T15:30:00'}
 ];
 let mockTicketStore=[...seedTickets];
-const mockUsers=[
- {id:1,name:'Sara Ahmed',email:'sara@example.com',role:'CUSTOMER',status:'ACTIVE'},
- {id:2,name:'Support Agent',email:'agent@example.com',role:'SUPPORT_AGENT',status:'ACTIVE'},
- {id:3,name:'Mariam Agent',email:'mariam@example.com',role:'SUPPORT_AGENT',status:'ACTIVE'},
- {id:99,name:'Admin User',email:'admin@example.com',role:'ADMIN',status:'ACTIVE'}
+let mockUsers=[
+ {id:1,name:'Sara Ahmed',email:'sara@example.com',role:'CUSTOMER',account_status:'ACTIVE'},
+ {id:2,name:'Support Agent',email:'agent@example.com',role:'SUPPORT_AGENT',account_status:'ACTIVE'},
+ {id:3,name:'Mariam Agent',email:'mariam@example.com',role:'SUPPORT_AGENT',account_status:'ACTIVE'},
+ {id:99,name:'Admin User',email:'admin@example.com',role:'ADMIN',account_status:'ACTIVE'}
 ];
 function mockUserFromEmail(email,name='Demo User'){
  const e=(email||'').toLowerCase();
@@ -41,8 +68,11 @@ async function mockApi(path,options={}){
  }
  const tm=path.match(/^\/tickets\/(\d+)$/);
  if(tm){const id=Number(tm[1]);const t=mockTicketStore.find(x=>x.id===id);if(!t)throw Error('Ticket not found');if(method==='PATCH')Object.assign(t,body,{updated_at:new Date().toISOString()});return{...t};}
- if(path.startsWith('/tickets/')&&path.endsWith('/messages'))return[{id:1,sender:'Customer',message:'I still need help with this issue.',timestamp:'2026-09-24T12:00:00'},{id:2,sender:'Support Agent',message:'Thanks for the details. I am checking this now.',timestamp:'2026-09-24T12:10:00'}];
- if(path==='/ai/classify-ticket')return{category:'ACCOUNT_ISSUE',priority:'HIGH',summary:`Customer reports: ${body.description||'support issue'}`,suggested_action:'Verify authentication and account access, then guide the customer through recovery steps.'};
+ const tam=path.match(/^\/tickets\/(\d+)\/assign$/);
+ if(tam){const id=Number(tam[1]);const t=mockTicketStore.find(x=>x.id===id);if(!t)throw Error('Ticket not found');const agent=mockUsers.find(u=>u.id===body.agent_id);t.assigned_agent_id=body.agent_id;t.assigned_agent_name=agent?.name;return{...t};}
+ if(path.startsWith('/tickets/')&&path.endsWith('/messages')&&method==='GET')return[{id:1,sender:{id:1,name:'Customer'},content:'I still need help with this issue.',timestamp:'2026-09-24T12:00:00'},{id:2,sender:{id:2,name:'Support Agent'},content:'Thanks for the details. I am checking this now.',timestamp:'2026-09-24T12:10:00'}];
+ if(path.startsWith('/tickets/')&&path.endsWith('/messages')&&method==='POST')return{id:Date.now(),sender:{id:2,name:'Support Agent'},content:body.content,timestamp:new Date().toISOString()};
+ if(path==='/ai/classify-ticket')return{category:'account_issue',priority:'high',summary:`Customer reports: ${body.description||'support issue'}`,suggested_action:'Verify authentication and account access, then guide the customer through recovery steps.'};
  if(path==='/ai/suggest-response')return{suggested_response:'Thank you for your patience. I understand the issue and I am reviewing the ticket now. I will keep you updated and confirm the next steps shortly.'};
  if(path==='/ai/chat'){
   const m=(body.message||'').toLowerCase();let response='I can help with tickets, ticket status, creating a ticket, permitted updates, or escalation.';let tool='';
@@ -52,7 +82,26 @@ async function mockApi(path,options={}){
   else if(m.includes('escalat')){response='I can start the escalation process for this issue. In the live backend, the Agent will call the escalation tool.';tool='escalate_ticket';}
   return{response,thread_id:body.thread_id||'demo-thread',tool};
  }
- if(path==='/users')return mockUsers;
+ if(path==='/users'&&method==='GET')return mockUsers;
+ if(path==='/admin/support-agents')return mockUsers.filter(u=>u.role==='SUPPORT_AGENT');
+ if(path==='/admin/customers')return mockUsers.filter(u=>u.role==='CUSTOMER');
+ if(path==='/admin/statistics')return{
+  total_tickets:mockTicketStore.length,
+  open_tickets:mockTicketStore.filter(t=>t.status==='OPEN').length,
+  in_progress_tickets:mockTicketStore.filter(t=>t.status==='IN_PROGRESS').length,
+  resolved_tickets:mockTicketStore.filter(t=>['RESOLVED','CLOSED'].includes(t.status)).length,
+  critical_tickets:mockTicketStore.filter(t=>t.priority==='CRITICAL').length,
+  tickets_per_category:mockTicketStore.reduce((acc,t)=>{acc[t.category]=(acc[t.category]||0)+1;return acc},{}),
+  tickets_per_agent:[{agent_id:2,agent_name:'Support Agent',ticket_count:mockTicketStore.filter(t=>t.assigned_agent_id===2).length}],
+ };
+ if(path==='/admin/support-activity')return[{agent_id:2,agent_name:'Support Agent',assigned_tickets:3,resolved_tickets:1,messages_sent:5}];
+ if(path==='/admin/ai-usage')return[{id:1,user_id:1,user_name:'Sara Ahmed',operation:'classify_ticket',success:true,created_at:new Date().toISOString()}];
+ const udm=path.match(/^\/users\/(\d+)\/(disable|activate)$/);
+ if(udm){const id=Number(udm[1]);const u=mockUsers.find(x=>x.id===id);if(u)u.account_status=udm[2]==='disable'?'DISABLED':'ACTIVE';return{...u};}
+ const urm=path.match(/^\/users\/(\d+)\/role$/);
+ if(urm){const id=Number(urm[1]);const u=mockUsers.find(x=>x.id===id);if(u)u.role=String(body.role||'').toUpperCase();return{...u};}
+ const uddm=path.match(/^\/users\/(\d+)$/);
+ if(uddm&&method==='DELETE'){const id=Number(uddm[1]);mockUsers=mockUsers.filter(x=>x.id!==id);return{message:'User deleted successfully'};}
  throw Error(`Mock endpoint not implemented: ${method} ${path}`);
 }
 async function api(path,options={}){
@@ -60,8 +109,9 @@ async function api(path,options={}){
  const token=getToken();const res=await fetch(API+path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...(options.headers||{})}});
  let data={};try{data=await res.json()}catch{} if(!res.ok)throw Error(data.detail||'Request failed');
  if(path==='/auth/me') return normalizeUser(data);
- if(path==='/tickets' || /^\/tickets\/\d+$/.test(path)) return Array.isArray(data)?normalizeTickets(data):normalizeTicket(data);
- if(path==='/users') return Array.isArray(data)?data.map(normalizeUser):data;
+ if(path==='/tickets' || /^\/tickets\/\d+$/.test(path) || /^\/tickets\/\d+\/assign$/.test(path)) return Array.isArray(data)?normalizeTickets(data):normalizeTicket(data);
+ if(path==='/users' || path==='/admin/customers' || path==='/admin/support-agents') return Array.isArray(data)?data.map(normalizeUser):data;
+ if(/^\/users\/\d+\/(disable|activate|role)$/.test(path)) return normalizeUser(data);
  return data;
 }
 const fmtStatus=s=>String(s||'').replaceAll('_',' ');
@@ -78,12 +128,134 @@ function Dashboard({tickets,user,setView}){return <section><div className="hero"
 function TicketRow({t,onClick}){return <button className="ticket-row" onClick={onClick}><div className="ticket-id">#{t.id}</div><div className="ticket-main"><b>{t.subject}</b><span>{t.category} · Updated {new Date(t.updated_at||t.created_at).toLocaleDateString()}</span></div><Badge type={`status-${cls(t.status)}`}>{fmtStatus(t.status)}</Badge><Badge type={`priority-${cls(t.priority)}`}>{t.priority}</Badge><span className="arrow">→</span></button>}
 function Empty({text}){return <div className="empty"><div>◌</div><b>{text}</b><span>Nothing to show here.</span></div>}
 function Tickets({tickets,setView,user}){const[q,setQ]=useState(''),[status,setStatus]=useState('ALL'),[priority,setPriority]=useState('ALL');const filtered=tickets.filter(t=>(!q||`${t.id} ${t.subject} ${t.category}`.toLowerCase().includes(q.toLowerCase()))&&(status==='ALL'||t.status===status)&&(priority==='ALL'||t.priority===priority));return <section className="panel"><div className="panel-head"><div><h3>{user?.role==='SUPPORT_AGENT'?'Assigned tickets':user?.role==='ADMIN'?'All tickets':'My tickets'}</h3><p>{filtered.length} ticket{filtered.length!==1?'s':''} visible</p></div>{user?.role==='CUSTOMER'&&<button className="primary" onClick={()=>setView('create')}>＋ New Ticket</button>}</div><div className="filters"><input placeholder="Search by ID, subject or category…" value={q} onChange={e=>setQ(e.target.value)}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="ALL">All statuses</option><option value="OPEN">Open</option><option value="IN_PROGRESS">In progress</option><option value="WAITING_FOR_CUSTOMER">Waiting</option><option value="RESOLVED">Resolved</option><option value="CLOSED">Closed</option></select><select value={priority} onChange={e=>setPriority(e.target.value)}><option value="ALL">All priorities</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></div><div className="table-head"><span>ID</span><span>Ticket</span><span>Status</span><span>Priority</span><span></span></div>{filtered.map(t=><TicketRow key={t.id} t={t} onClick={()=>setView('ticket:'+t.id)}/>)}{!filtered.length&&<Empty text="No matching tickets."/>}</section>}
-function CreateTicket({onCreated,setView}){const[form,setForm]=useState({subject:'',description:'',category:'GENERAL_INQUIRY'}),[classification,setClassification]=useState(null),[loading,setLoading]=useState(false),[saved,setSaved]=useState(false);async function classify(){if(!form.subject||!form.description)return;try{setClassification(await api('/ai/classify-ticket',{method:'POST',body:JSON.stringify({subject:form.subject,description:form.description})}))}catch(e){setClassification({summary:e.message})}}async function submit(e){e.preventDefault();setLoading(true);try{const category=classification?.category||form.category;const t=await api('/tickets',{method:'POST',body:JSON.stringify({subject:form.subject,description:form.description,category:backendEnum(category),message:form.description})});onCreated(t);setSaved(true);setTimeout(()=>setView('tickets'),500)}catch(e){setClassification({summary:e.message})}finally{setLoading(false)}}return <section className="two-col"><div className="panel"><div className="panel-head"><div><h3>New support ticket</h3><p>Describe the issue clearly so the support team can help.</p></div></div><form className="form-panel" onSubmit={submit}><label>Subject<input required placeholder="e.g. Unable to access my account" value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/></label><label>Category<select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}><option>TECHNICAL_ISSUE</option><option>ACCOUNT_ISSUE</option><option>BILLING</option><option>PRODUCT_ISSUE</option><option>GENERAL_INQUIRY</option></select></label><label>Description<textarea required rows="8" placeholder="Describe what happened…" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><div className="form-actions"><button type="button" className="secondary" onClick={classify}>✦ Analyze with AI</button><button className="primary" disabled={loading}>{saved?'Created ✓':loading?'Creating…':'Create Ticket'}</button></div></form></div><div className="panel ai-preview"><span className="pill">AI CLASSIFICATION</span>{classification?<><h3>Suggested classification</h3><div className="classification"><div><small>Category</small><b>{classification.category||'—'}</b></div><div><small>Priority</small>{classification.priority&&<Badge type={`priority-${cls(classification.priority)}`}>{classification.priority}</Badge>}</div><div><small>Summary</small><p>{classification.summary}</p></div><div><small>Suggested action</small><p>{classification.suggested_action||'—'}</p></div></div></>:<div className="ai-empty"><div className="ai-orb">✦</div><h3>Let AI help classify it</h3><p>Enter the issue description, then use Analyze with AI. The result can suggest a category, priority, summary and next action.</p></div>}</div></section>}
+function CreateTicket({onCreated,setView}){const[form,setForm]=useState({subject:'',description:'',category:'GENERAL_INQUIRY'}),[classification,setClassification]=useState(null),[loading,setLoading]=useState(false),[saved,setSaved]=useState(false);async function classify(){if(!form.subject||!form.description)return;try{setClassification(await api('/ai/classify-ticket',{method:'POST',body:JSON.stringify({subject:form.subject,description:form.description})}))}catch(e){setClassification({summary:e.message})}}async function submit(e){e.preventDefault();setLoading(true);try{const category=classification?.category||form.category;const t=await api('/tickets',{method:'POST',body:JSON.stringify({subject:form.subject,description:form.description,category:backendEnum(category),message:form.description})});onCreated(t);setSaved(true);setTimeout(()=>setView('tickets'),500)}catch(e){setClassification({summary:e.message})}finally{setLoading(false)}}return <section className="two-col"><div className="panel"><div className="panel-head"><div><h3>New support ticket</h3><p>Describe the issue clearly so the support team can help.</p></div></div><form className="form-panel" onSubmit={submit}><label>Subject<input required placeholder="e.g. Unable to access my account" value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/></label><label>Category<select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}><option>TECHNICAL_ISSUE</option><option>ACCOUNT_ISSUE</option><option>BILLING</option><option>PRODUCT_ISSUE</option><option>GENERAL_INQUIRY</option></select></label><label>Description<textarea required rows="8" placeholder="Describe what happened…" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><div className="form-actions"><button type="button" className="secondary" onClick={classify}>✦ Analyze with AI</button><button className="primary" disabled={loading}>{saved?'Created ✓':loading?'Creating…':'Create Ticket'}</button></div></form></div><div className="panel ai-preview"><span className="pill">AI CLASSIFICATION</span>{classification?<><h3>Suggested classification</h3><div className="classification"><div><small>Category</small><b>{classification.category||'—'}</b></div><div><small>Priority</small>{classification.priority&&<Badge type={`priority-${cls(classification.priority)}`}>{classification.priority}</Badge>}</div><div><small>Summary</small><p>{classification.summary}</p></div><div><small>Suggested action</small><p>{classification.suggested_action||'—'}</p></div></div></>:<div className="ai-empty"><div className="ai-orb">✦</div><h3>Let AI help classify it</h3><p>Enter the issue description, then use Analyze with AI. This is just a preview — the final classification is decided by the AI again when the ticket is actually created.</p></div>}</div></section>}
 function Chat(){const[messages,setMessages]=useState([{role:'assistant',text:'Hi! I’m your SupportFlow AI Agent. Ask me about your tickets, a ticket status, creating a ticket, or escalating an issue.'}]),[input,setInput]=useState(''),[loading,setLoading]=useState(false),[tool,setTool]=useState('');async function send(text=input){if(!text.trim()||loading)return;setMessages(m=>[...m,{role:'user',text}]);setInput('');setLoading(true);try{const d=await api('/ai/chat',{method:'POST',body:JSON.stringify({message:text,thread_id:'demo-thread'})});setTool(d.tool||'');setMessages(m=>[...m,{role:'assistant',text:d.response}])}catch(e){setMessages(m=>[...m,{role:'assistant',text:e.message}])}finally{setLoading(false)}}return <section className="chat-shell"><div className="chat-head"><div className="ai-orb">✦</div><div><b>SupportFlow AI Agent</b><span>Understands requests and can use support tools</span></div><Badge type="success">ONLINE</Badge></div><div className="chat-body">{messages.map((m,i)=><div className={`bubble-wrap ${m.role}`} key={i}><div className={`bubble ${m.role}`}>{m.text}</div></div>)}{loading&&<div className="bubble-wrap assistant"><div className="bubble assistant typing">Analyzing request…</div></div>}{tool&&!loading&&<div className="tool-chip">✓ Tool used: <b>{tool.replaceAll('_',' ')}</b></div>}</div><div className="suggestions"><button onClick={()=>send('Show me my open tickets')}>Show my open tickets</button><button onClick={()=>send('What is the status of ticket #125?')}>Check ticket #125</button><button onClick={()=>send('I need to escalate my ticket')}>Escalate an issue</button></div><form className="chat-input" onSubmit={e=>{e.preventDefault();send()}}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask the AI Agent…"/><button className="primary">Send</button></form></section>}
-function Suggest({tickets}){const[active,setActive]=useState(tickets[0]?.id),[text,setText]=useState(''),[loading,setLoading]=useState(false),[sent,setSent]=useState(false);const t=tickets.find(x=>x.id===active)||tickets[0];async function generate(){if(!t)return;setLoading(true);setSent(false);try{const d=await api('/ai/suggest-response',{method:'POST',body:JSON.stringify({ticket_id:t.id})});setText(d.suggested_response||'')}finally{setLoading(false)}}useEffect(()=>{if(t)setText('')},[active]);return <section className="suggest-layout"><div className="panel suggestion-list"><div className="panel-head"><div><h3>Choose a ticket</h3><p>Generate a reply draft for human review.</p></div></div>{tickets.map(x=><button className={x.id===active?'suggest-ticket active':'suggest-ticket'} key={x.id} onClick={()=>setActive(x.id)}><b>#{x.id} {x.subject}</b><span>{x.category} · {x.priority}</span></button>)}</div><div className="panel suggestion-editor"><div className="panel-head"><div><span className="pill">HUMAN REVIEW REQUIRED</span><h3>AI response suggestion</h3><p>The AI drafts the response; the agent edits and sends it.</p></div><button className="secondary" onClick={generate}>✦ {loading?'Generating…':'Generate'}</button></div>{t&&<div className="customer-message"><small>Customer message</small><p>{t.description}</p></div>}<textarea rows="12" value={text} onChange={e=>setText(e.target.value)} placeholder="Your AI-generated response will appear here…"/><div className="editor-actions"><button className="secondary" onClick={()=>setText('')}>Clear</button><button className="primary" onClick={()=>setSent(true)}>{sent?'Sent ✓':'Send final response'}</button></div></div></section>}
-function TicketDetails({id,ticket,setView,onUpdate,user}){const[messages,setMessages]=useState([]),[reply,setReply]=useState(''),[sending,setSending]=useState(false);useEffect(()=>{api(`/tickets/${id}/messages`).then(setMessages).catch(()=>setMessages([]))},[id]);if(!ticket)return <section className="panel"><button className="back" onClick={()=>setView('tickets')}>← Back</button><Empty text="Ticket not found."/></section>;async function update(field,value){const t=await api(`/tickets/${id}`,{method:'PATCH',body:JSON.stringify({[field]:backendEnum(value)})});onUpdate(t)}async function send(){if(!reply.trim())return;setSending(true);try{const m=await api(`/tickets/${id}/messages`,{method:'POST',body:JSON.stringify({content:reply})});setMessages(ms=>[...ms,m]);setReply('')}catch(e){alert(e.message)}finally{setSending(false)}}return <section><button className="back" onClick={()=>setView('tickets')}>← Back to tickets</button><div className="detail-grid"><div className="panel"><div className="detail-top"><div><div className="ticket-id">#{ticket.id}</div><h2>{ticket.subject}</h2><p>{ticket.description}</p></div><div><Badge type={`status-${cls(ticket.status)}`}>{fmtStatus(ticket.status)}</Badge><Badge type={`priority-${cls(ticket.priority)}`}>{ticket.priority}</Badge></div></div><div className="meta-grid"><div><small>Customer</small><b>{ticket.customer||'Customer'}</b></div><div><small>Category</small><b>{ticket.category}</b></div><div><small>Created</small><b>{new Date(ticket.created_at).toLocaleDateString()}</b></div><div><small>Assigned agent</small><b>{ticket.assigned_agent_id?'Support Agent':'Unassigned'}</b></div></div><div className="conversation"><h3>Conversation</h3>{messages.map(m=><div className="message" key={m.id}><div className="message-avatar">{(m.sender?.name||m.sender||'U')[0]}</div><div><b>{m.sender?.name||m.sender||'User'}</b><small>{new Date(m.timestamp).toLocaleString()}</small><p>{m.content||m.message}</p></div></div>)}<div className="reply"><textarea rows="4" value={reply} onChange={e=>setReply(e.target.value)} placeholder="Write a reply…"/><div className="form-actions"><button className="primary" onClick={send} disabled={sending}>Send Reply</button></div></div></div></div><aside className="detail-side"><div className="panel"><h3>Ticket controls</h3><div className="controls"><label>Status<select value={ticket.status} onChange={e=>update('status',e.target.value)}><option>OPEN</option><option>IN_PROGRESS</option><option>WAITING_FOR_CUSTOMER</option><option>RESOLVED</option><option>CLOSED</option></select></label><label>Priority<select value={ticket.priority} onChange={e=>update('priority',e.target.value)}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div></div><div className="panel"><span className="pill">AI ASSISTANCE</span><h3>Need a suggested reply?</h3><p className="muted">Open AI Suggestions to draft a professional response with human confirmation.</p><button className="secondary full" onClick={()=>setView('suggest')}>Open AI Suggestions</button></div></aside></div></section>}
-function AdminUsers(){const[users,setUsers]=useState([]),[loading,setLoading]=useState(true);useEffect(()=>{api('/users').then(setUsers).catch(()=>setUsers([])).finally(()=>setLoading(false))},[]);return <section className="panel"><div className="panel-head"><div><h3>Users & support agents</h3><p>Live users from the FastAPI backend.</p></div></div>{loading?<div className="loading">Loading users…</div>:<div className="user-table">{users.map(u=><div className="user-row" key={u.id}><div className="avatar">{u.name[0]}</div><div><b>{u.name}</b><span>{u.email}</span></div><Badge type="neutral">{u.role}</Badge><Badge type={u.account_status==='ACTIVE'?'success':'neutral'}>{u.account_status}</Badge></div>)}</div>}</section>}
-function Statistics({tickets}){const cats=[...new Set(tickets.map(t=>t.category))].map(c=>[c,tickets.filter(t=>t.category===c).length]);return <section><Stats tickets={tickets}/><div className="stats-panels"><div className="panel"><h3>Tickets by category</h3>{cats.map(([c,n])=><div className="bar-row" key={c}><span>{c}</span><div><i style={{width:`${Math.max(10,n/tickets.length*100)}%`}}></i></div><b>{n}</b></div>)}</div><div className="panel"><h3>Priority breakdown</h3>{['LOW','MEDIUM','HIGH','CRITICAL'].map(p=><div className="break-row" key={p}><Badge type={`priority-${cls(p)}`}>{p}</Badge><b>{tickets.filter(t=>t.priority===p).length}</b></div>)}</div></div></section>}
-function App(){const[user,setUser]=useState(normalizeUser(getUser())),[view,setView]=useState('dashboard'),[tickets,setTickets]=useState([]),[loading,setLoading]=useState(false);async function load(){setLoading(true);try{setTickets(await api('/tickets'))}catch(e){console.error(e)}finally{setLoading(false)}}useEffect(()=>{if(user)load()},[user]);function logout(){localStorage.clear();setUser(null)}function updateTicket(t){setTickets(ts=>ts.map(x=>x.id===t.id?t:x))}if(!user)return <Login onLogin={setUser}/>;let content;if(loading)content=<div className="loading">Loading your workspace…</div>;else if(view.startsWith('ticket:')){const id=Number(view.split(':')[1]);content=<TicketDetails id={id} ticket={tickets.find(t=>t.id===id)} setView={setView} onUpdate={updateTicket} user={user}/>;}else if(view==='dashboard')content=<Dashboard tickets={tickets} user={user} setView={setView}/>;else if(view==='tickets')content=<Tickets tickets={tickets} setView={setView} user={user}/>;else if(view==='create')content=<CreateTicket onCreated={t=>setTickets(ts=>[t,...ts])} setView={setView}/>;else if(view==='chat')content=<Chat/>;else if(view==='suggest')content=<Suggest tickets={tickets}/>;else if(view==='users')content=<AdminUsers/>;else if(view==='stats')content=<Statistics tickets={tickets}/>;return <Layout user={user} onLogout={logout} view={view} setView={setView}>{content}</Layout>}
+function Suggest({tickets}){
+ const[active,setActive]=useState(tickets[0]?.id),[text,setText]=useState(''),[loading,setLoading]=useState(false),[sending,setSending]=useState(false),[sent,setSent]=useState(false),[error,setError]=useState('');
+ const t=tickets.find(x=>x.id===active)||tickets[0];
+ async function generate(){if(!t)return;setLoading(true);setSent(false);setError('');try{const d=await api('/ai/suggest-response',{method:'POST',body:JSON.stringify({ticket_id:t.id})});setText(d.suggested_response||'')}finally{setLoading(false)}}
+ async function sendFinal(){if(!t||!text.trim())return;setSending(true);setError('');try{await api(`/tickets/${t.id}/messages`,{method:'POST',body:JSON.stringify({content:text})});setSent(true)}catch(e){setError(e.message)}finally{setSending(false)}}
+ useEffect(()=>{if(t){setText('');setSent(false);setError('')}},[active]);
+ return <section className="suggest-layout">
+  <div className="panel suggestion-list"><div className="panel-head"><div><h3>Choose a ticket</h3><p>Generate a reply draft for human review.</p></div></div>{tickets.map(x=><button className={x.id===active?'suggest-ticket active':'suggest-ticket'} key={x.id} onClick={()=>setActive(x.id)}><b>#{x.id} {x.subject}</b><span>{x.category} · {x.priority}</span></button>)}</div>
+  <div className="panel suggestion-editor">
+   <div className="panel-head"><div><span className="pill">HUMAN REVIEW REQUIRED</span><h3>AI response suggestion</h3><p>The AI drafts the response; the agent edits and sends it.</p></div><button className="secondary" onClick={generate}>✦ {loading?'Generating…':'Generate'}</button></div>
+   {t&&<div className="customer-message"><small>Customer message</small><p>{t.description}</p></div>}
+   <textarea rows="12" value={text} onChange={e=>setText(e.target.value)} placeholder="Your AI-generated response will appear here…"/>
+   {error&&<div className="error">{error}</div>}
+   <div className="editor-actions"><button className="secondary" onClick={()=>setText('')}>Clear</button><button className="primary" onClick={sendFinal} disabled={sending||!text.trim()}>{sent?'Sent ✓':sending?'Sending…':'Send final response'}</button></div>
+  </div>
+ </section>
+}
+function TicketDetails({id,ticket,setView,onUpdate,user}){
+ const[messages,setMessages]=useState([]),[reply,setReply]=useState(''),[sending,setSending]=useState(false);
+ const[agents,setAgents]=useState([]),[assigning,setAssigning]=useState(false);
+ useEffect(()=>{api(`/tickets/${id}/messages`).then(setMessages).catch(()=>setMessages([]))},[id]);
+ useEffect(()=>{if(user?.role==='ADMIN')api('/admin/support-agents').then(setAgents).catch(()=>setAgents([]))},[user]);
+ if(!ticket)return <section className="panel"><button className="back" onClick={()=>setView('tickets')}>← Back</button><Empty text="Ticket not found."/></section>;
+ async function update(field,value){const t=await api(`/tickets/${id}`,{method:'PATCH',body:JSON.stringify({[field]:backendEnum(value)})});onUpdate(t)}
+ async function assign(agentId){if(!agentId)return;setAssigning(true);try{const t=await api(`/tickets/${id}/assign`,{method:'PATCH',body:JSON.stringify({agent_id:Number(agentId)})});onUpdate(t)}catch(e){alert(e.message)}finally{setAssigning(false)}}
+ async function send(){if(!reply.trim())return;setSending(true);try{const m=await api(`/tickets/${id}/messages`,{method:'POST',body:JSON.stringify({content:reply})});setMessages(ms=>[...ms,m]);setReply('')}catch(e){alert(e.message)}finally{setSending(false)}}
+ return <section>
+  <button className="back" onClick={()=>setView('tickets')}>← Back to tickets</button>
+  <div className="detail-grid">
+   <div className="panel">
+    <div className="detail-top"><div><div className="ticket-id">#{ticket.id}</div><h2>{ticket.subject}</h2><p>{ticket.description}</p></div><div><Badge type={`status-${cls(ticket.status)}`}>{fmtStatus(ticket.status)}</Badge><Badge type={`priority-${cls(ticket.priority)}`}>{ticket.priority}</Badge></div></div>
+    <div className="meta-grid"><div><small>Customer</small><b>{ticket.customer?.name||ticket.customer||'Customer'}</b></div><div><small>Category</small><b>{ticket.category}</b></div><div><small>Created</small><b>{new Date(ticket.created_at).toLocaleDateString()}</b></div><div><small>Assigned agent</small><b>{ticket.assigned_agent_id?(agents.find(a=>a.id===ticket.assigned_agent_id)?.name||`Agent #${ticket.assigned_agent_id}`):'Unassigned'}</b></div></div>
+    <div className="conversation"><h3>Conversation</h3>{messages.map(m=><div className="message" key={m.id}><div className="message-avatar">{(m.sender?.name||m.sender||'U')[0]}</div><div><b>{m.sender?.name||m.sender||'User'}</b><small>{new Date(m.timestamp).toLocaleString()}</small><p>{m.content||m.message}</p></div></div>)}<div className="reply"><textarea rows="4" value={reply} onChange={e=>setReply(e.target.value)} placeholder="Write a reply…"/><div className="form-actions"><button className="primary" onClick={send} disabled={sending}>Send Reply</button></div></div></div>
+   </div>
+   <aside className="detail-side">
+    <div className="panel">
+     <h3>Ticket controls</h3>
+     <div className="controls">
+      <label>Status<select value={ticket.status} onChange={e=>update('status',e.target.value)}><option>OPEN</option><option>IN_PROGRESS</option><option>WAITING_FOR_CUSTOMER</option><option>RESOLVED</option><option>CLOSED</option></select></label>
+      <label>Priority<select value={ticket.priority} onChange={e=>update('priority',e.target.value)}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+      {user?.role==='ADMIN'&&<label>Assigned agent<select value={ticket.assigned_agent_id||''} onChange={e=>assign(e.target.value)} disabled={assigning}><option value="">Unassigned</option>{agents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
+     </div>
+    </div>
+    <div className="panel"><span className="pill">AI ASSISTANCE</span><h3>Need a suggested reply?</h3><p className="muted">Open AI Suggestions to draft a professional response with human confirmation.</p><button className="secondary full" onClick={()=>setView('suggest')}>Open AI Suggestions</button></div>
+   </aside>
+  </div>
+ </section>
+}
+function AdminUsers(){
+ const[users,setUsers]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ async function load(){setLoading(true);setError('');try{setUsers(await api('/users'))}catch(e){setError(e.message)}finally{setLoading(false)}}
+ useEffect(()=>{load()},[]);
+ async function changeRole(u,role){try{const updated=await api(`/users/${u.id}/role`,{method:'PATCH',body:JSON.stringify({role:backendEnum(role)})});setUsers(us=>us.map(x=>x.id===u.id?updated:x))}catch(e){alert(e.message)}}
+ async function toggleStatus(u){const path=u.account_status==='ACTIVE'?`/users/${u.id}/disable`:`/users/${u.id}/activate`;try{const updated=await api(path,{method:'PATCH'});setUsers(us=>us.map(x=>x.id===u.id?updated:x))}catch(e){alert(e.message)}}
+ async function removeUser(u){if(!window.confirm(`Delete ${u.name}? This cannot be undone.`))return;try{await api(`/users/${u.id}`,{method:'DELETE'});setUsers(us=>us.filter(x=>x.id!==u.id))}catch(e){alert(e.message)}}
+ return <section className="panel">
+  <div className="panel-head"><div><h3>Users & support agents</h3><p>Manage roles and account status.</p></div></div>
+  {error&&<div className="error">{error}</div>}
+  {loading?<div className="loading">Loading users…</div>:<div className="user-table">{users.map(u=>
+   <div className="user-row" style={{gridTemplateColumns:'40px 1fr 150px 90px 70px'}} key={u.id}>
+    <div className="avatar">{u.name[0]}</div>
+    <div><b>{u.name}</b><span>{u.email}</span></div>
+    <select value={u.role} onChange={e=>changeRole(u,e.target.value)}>
+     <option value="CUSTOMER">CUSTOMER</option>
+     <option value="SUPPORT_AGENT">SUPPORT_AGENT</option>
+     <option value="ADMIN">ADMIN</option>
+    </select>
+    <button className="secondary" onClick={()=>toggleStatus(u)}>{u.account_status==='ACTIVE'?'Disable':'Activate'}</button>
+    <button className="secondary" onClick={()=>removeUser(u)}>Delete</button>
+   </div>
+  )}</div>}
+ </section>
+}
+function Statistics(){
+ const[stats,setStats]=useState(null),[activity,setActivity]=useState([]),[aiUsage,setAiUsage]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ useEffect(()=>{
+  async function load(){
+   setLoading(true);setError('');
+   try{
+    const[s,a,u]=await Promise.all([api('/admin/statistics'),api('/admin/support-activity'),api('/admin/ai-usage')]);
+    setStats(s);setActivity(a);setAiUsage(u);
+   }catch(e){setError(e.message)}finally{setLoading(false)}
+  }
+  load();
+ },[]);
+ if(loading)return <div className="loading">Loading statistics…</div>;
+ if(error)return <div className="error">{error}</div>;
+ if(!stats)return null;
+ const cats=Object.entries(stats.tickets_per_category||{});
+ const total=stats.total_tickets||1;
+ return <section>
+  <div className="stats-grid">
+   {[['Total Tickets',stats.total_tickets],['Open',stats.open_tickets],['In Progress',stats.in_progress_tickets],['Resolved',stats.resolved_tickets],['Critical',stats.critical_tickets]].map(([label,value])=>
+    <div className="stat" key={label}><div className="stat-icon">#</div><div><small>{label}</small><strong>{value}</strong></div></div>
+   )}
+  </div>
+  <div className="stats-panels">
+   <div className="panel"><h3>Tickets by category</h3>{cats.map(([c,n])=><div className="bar-row" key={c}><span>{c}</span><div><i style={{width:`${Math.max(10,n/total*100)}%`}}></i></div><b>{n}</b></div>)}{!cats.length&&<p className="muted">No tickets yet.</p>}</div>
+   <div className="panel"><h3>Tickets per agent</h3>{(stats.tickets_per_agent||[]).map(a=><div className="break-row" key={a.agent_id}><span>{a.agent_name}</span><b>{a.ticket_count}</b></div>)}{!stats.tickets_per_agent?.length&&<p className="muted">No agents assigned yet.</p>}</div>
+  </div>
+  <div className="panel"><h3>Support activity</h3>{activity.map(a=><div className="break-row" key={a.agent_id}><span>{a.agent_name}</span><span>Assigned: {a.assigned_tickets} · Resolved: {a.resolved_tickets} · Messages: {a.messages_sent}</span></div>)}{!activity.length&&<p className="muted">No support activity yet.</p>}</div>
+  <div className="panel"><h3>Recent AI usage</h3>{aiUsage.slice(0,15).map(u=><div className="break-row" key={u.id}><span>{u.user_name} · {u.operation}</span><Badge type={u.success?'success':'neutral'}>{u.success?'OK':'Failed'}</Badge></div>)}{!aiUsage.length&&<p className="muted">No AI activity recorded yet.</p>}</div>
+ </section>
+}
+function App(){
+ const[user,setUser]=useState(normalizeUser(getUser()));
+ const[view,setView,resetView]=useViewRouter('dashboard');
+ const[tickets,setTickets]=useState([]),[loading,setLoading]=useState(false);
+ async function load(){setLoading(true);try{setTickets(await api('/tickets'))}catch(e){console.error(e)}finally{setLoading(false)}}
+ useEffect(()=>{if(user)load()},[user]);
+ function handleLogin(u){setUser(u);resetView('dashboard')}
+ function logout(){localStorage.clear();setUser(null);resetView('dashboard')}
+ function updateTicket(t){setTickets(ts=>ts.map(x=>x.id===t.id?t:x))}
+ if(!user)return <Login onLogin={handleLogin}/>;
+ let content;
+ if(loading)content=<div className="loading">Loading your workspace…</div>;
+ else if(view.startsWith('ticket:')){const id=Number(view.split(':')[1]);content=<TicketDetails id={id} ticket={tickets.find(t=>t.id===id)} setView={setView} onUpdate={updateTicket} user={user}/>;}
+ else if(view==='dashboard')content=<Dashboard tickets={tickets} user={user} setView={setView}/>;
+ else if(view==='tickets')content=<Tickets tickets={tickets} setView={setView} user={user}/>;
+ else if(view==='create')content=<CreateTicket onCreated={t=>setTickets(ts=>[t,...ts])} setView={setView}/>;
+ else if(view==='chat')content=<Chat/>;
+ else if(view==='suggest')content=<Suggest tickets={tickets}/>;
+ else if(view==='users')content=<AdminUsers/>;
+ else if(view==='stats')content=<Statistics/>;
+ else content=<Dashboard tickets={tickets} user={user} setView={setView}/>;
+ return <Layout user={user} onLogout={logout} view={view} setView={setView}>{content}</Layout>
+}
 
 createRoot(document.getElementById('root')).render(<App/>);

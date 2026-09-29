@@ -11,6 +11,7 @@ from app.schemas.ticket import CreateTicketRequest, TicketResponse, UpdateTicket
 from app.services.ai_service import classify_ticket
 from app.models.ai_usage import AIUsage
 from app.services.notification_service import trigger_n8n_webhook
+from app.services import ticket_service
 
 router = APIRouter(
     prefix="/tickets",
@@ -197,12 +198,11 @@ def update_ticket(
     previous_priority = ticket.priority
 
     if data.status is not None:
-        ticket.status = data.status
+        ticket_service.update_ticket_status(db, ticket, data.status)
 
     if data.priority is not None:
-        ticket.priority = data.priority
+        ticket_service.update_ticket_priority(db, ticket, data.priority)
 
-    db.commit()
     db.refresh(ticket)
 
     if (

@@ -58,6 +58,11 @@ class Ticket(Base):
         onupdate=func.now(),
     )
 
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     subject: Mapped[str] = mapped_column(
         String(255),
         nullable=False

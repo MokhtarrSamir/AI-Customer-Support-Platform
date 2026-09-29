@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User, UserRole, AccountStatus
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, UpdateUserRoleRequest
 
 
 router = APIRouter(
@@ -104,6 +104,42 @@ def activate_user(
         )
 
     user.account_status = AccountStatus.ACTIVE
+
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+@router.patch("/{user_id}/role", response_model=UserResponse)
+def update_user_role(
+    user_id: int,
+    data: UpdateUserRoleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can change user roles",
+        )
+
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Admins cannot change their own role",
+        )
+
+    user = db.scalar(
+        select(User).where(User.id == user_id)
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    user.role = data.role
 
     db.commit()
     db.refresh(user)

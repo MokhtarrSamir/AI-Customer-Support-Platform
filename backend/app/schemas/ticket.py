@@ -27,6 +27,7 @@ class TicketResponse(BaseModel):
     assigned_agent_id: int | None
     created_at: datetime
     updated_at: datetime
+    resolved_at: datetime | None
     ai_summary: str | None
     ai_suggested_action: str | None
 

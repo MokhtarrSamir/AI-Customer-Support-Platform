@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
-
+from app.models.user import AccountStatus, UserRole
 from app.models.user import AccountStatus, UserRole
 
 
@@ -14,3 +14,6 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class UpdateUserRoleRequest(BaseModel):
+    role: UserRole
